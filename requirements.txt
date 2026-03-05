@@ -1,0 +1,10 @@
+keyboard==0.13.5
+numpy==2.1.3
+Pillow==11.0.0
+PyAutoGUI==0.9.54
+dbus-python==1.3.2
+PyGObject==3.46.0
+mss==9.0.1
+PyYAML==6.0.1
+# Optional Wayland keyboard alternatives
+pynput==1.7.6

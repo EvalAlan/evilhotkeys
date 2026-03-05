@@ -1,0 +1,95 @@
+# EvilHotKeys Configuration File
+# Copy this file to config.yaml and customize as needed
+
+# Performance settings
+performance:
+  # Profile options: fast, balanced, responsive, debug
+  profile: balanced
+  
+  # Screenshot cache duration in seconds (overridden by profile)
+  # Longer cache = better performance but less responsive
+  # Shorter cache = more responsive but slower
+  screenshot_cache_duration: 0.5
+  
+  # Enable debug timing output
+  debug_timing: false
+
+# Logging configuration
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: INFO
+  
+  # Whether to log to file
+  log_to_file: false
+  
+  # Log file path (relative to project root)
+  log_file_path: evilhotkeys.log
+
+# Keybindings
+keybinds:
+  # Key to pause/unpause script
+  pause: end
+  
+  # Key to stop script
+  stop: esc
+
+# Display settings
+display:
+  # Your screen resolution (used for pixel coordinates)
+  resolution: 5760x1080
+  
+  # Auto-detect resolution on startup
+  use_auto_detect: true
+
+# Game-specific configurations
+games:
+  # World of Warcraft configuration
+  World of Warcraft:
+    # Pixel coordinates for different resolutions
+    coordinates:
+      # Triple monitor setup (5760x1080)
+      5760x1080:
+        interrupt: [2456, 1015]
+        health_50: [2483, 1000]
+        health_35: [2506, 1000]
+        health_25: [2533, 1000]
+        health_75: [2554, 1000]
+        focus_health: [2345, 915]
+        health_below_50: [2375, 995]
+      
+      # Single 1920x1080 monitor
+      1920x1080:
+        interrupt: [820, 1015]
+        health_50: [847, 1000]
+        health_35: [870, 1000]
+        health_25: [897, 1000]
+        health_75: [918, 1000]
+        focus_health: [709, 915]
+        health_below_50: [739, 995]
+      
+      # 4K monitor (3840x2160)
+      3840x2160:
+        interrupt: [1640, 2030]
+        health_50: [1694, 2000]
+        health_35: [1740, 2000]
+        health_25: [1794, 2000]
+        health_75: [1836, 2000]
+  
+  # Guild Wars 2 configuration
+  Guild Wars 2:
+    coordinates:
+      5760x1080:
+        grenade_kit_check: [2170, 2045, 2205, 2080]  # Region for pixel_search
+        sg: [2630, 1017]
+        pg: [2797, 1017]
+        signet: [3063, 1015]
+        fg: [2743, 1017]
+
+# Example of how to add a new game
+# MyGame:
+#   coordinates:
+#     1920x1080:
+#       ability1: [100, 100]
+#       ability2: [150, 100]
+#       health_bar: [50, 50]
+
