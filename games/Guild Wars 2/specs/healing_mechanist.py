@@ -13,12 +13,14 @@ Intent:
 - Preserve fast Acid Bomb-style cancel behavior when using blast leap (weapon swap instantly).
 """
 
+import os
 import time
 import keyboard
 
 from libs.keyboard_actions import button_mash
 from libs.key_mapping import key_mapping
 from libs.logger import get_logger
+from libs.spec_monitor import get_monitor
 from libs.pause import wait_if_paused
 from libs.pixel_get_color import get_color as pixel_get_color
 
@@ -44,6 +46,11 @@ MIN_LOOP_DELAY = 0.12
 KIT_SWITCH_SETTLE = 0.35
 POST_CAST_DELAY = 0.18
 
+# Debug visibility for "what the spec is seeing".
+# Enable with: EHK_HEAL_DEBUG=1
+DEBUG_VISION = os.getenv("EHK_HEAL_DEBUG", "0") == "1"
+DEBUG_EVERY_LOOPS = 8
+
 # Priority cooldown gates (seconds). Deliberately slower than animation minimums.
 GATES = {
     "barrier_burst": 10.5,
@@ -68,6 +75,16 @@ def check_stop_condition(stop_event):
 def is_ready(slot_name: str) -> bool:
     color = pixel_get_color(*COORDS[slot_name])
     return bool(color and color != (0, 0, 0) and sum(color) > 60)
+
+
+def _debug(msg: str):
+    if not DEBUG_VISION:
+        return
+    logger.info(f"[heal-debug] {msg}")
+    try:
+        get_monitor().record_custom_event(f"heal-debug: {msg}")
+    except Exception:
+        pass
 
 
 def _press(key, presses=1, delay=0.04):
@@ -139,18 +156,32 @@ def try_cast(timers, tag, gate, key, slot=None, presses=1, wait=POST_CAST_DELAY)
 
 def healing_mechanist_rotation(stop_event):
     timers = {k: 0.0 for k in GATES}
+    loop_count = 0
 
     while not stop_event.is_set():
         wait_if_paused()
         if check_stop_condition(stop_event):
             break
 
+        loop_count += 1
+        if DEBUG_VISION and (loop_count % DEBUG_EVERY_LOOPS == 0):
+            kit = detect_active_kit()
+            s2 = pixel_get_color(*COORDS["slot_2"])
+            s3 = pixel_get_color(*COORDS["slot_3"])
+            s4 = pixel_get_color(*COORDS["slot_4"])
+            s5 = pixel_get_color(*COORDS["slot_5"])
+            _debug(
+                f"kit={kit} slot2={s2} slot3={s3} slot4={s4} slot5={s5} "
+                f"ready2={is_ready('slot_2')} ready3={is_ready('slot_3')} ready4={is_ready('slot_4')} ready5={is_ready('slot_5')}"
+            )
+
         # Always keep mech commands flowing first.
         try_cast(timers, "barrier_burst", GATES["barrier_burst"], key_mapping.get("3", "3"))
         try_cast(timers, "crisis_zone", GATES["crisis_zone"], key_mapping.get("2", "2"))
 
         # Short bow baseline (2-4), 5 intentionally held unless manually needed.
-        ensure_kit("shortbow")
+        if not ensure_kit("shortbow"):
+            _debug("ensure_kit(shortbow) failed")
         try_cast(timers, "shortbow_2", GATES["shortbow_2"], key_mapping["numpad2"], slot="slot_2")
         try_cast(timers, "shortbow_3", GATES["shortbow_3"], key_mapping["numpad3"], slot="slot_3")
         sb4_cast = try_cast(timers, "shortbow_4", GATES["shortbow_4"], key_mapping["numpad4"], slot="slot_4")
@@ -160,6 +191,8 @@ def healing_mechanist_rotation(stop_event):
             if ensure_kit("med_kit"):
                 try_cast(timers, "med_4", GATES["med_4"], key_mapping["numpad4"], slot="slot_4")
                 try_cast(timers, "med_5", GATES["med_5"], key_mapping["numpad5"], slot="slot_5")
+            else:
+                _debug("ensure_kit(med_kit) failed")
 
         # Pairing: SB3 window -> Super Elixir, optional Fumigate.
         if (time.time() - timers["elixir_5"]) >= GATES["elixir_5"] or (time.time() - timers["shortbow_3"]) < 1.1:
@@ -168,6 +201,8 @@ def healing_mechanist_rotation(stop_event):
                 if se_cast:
                     # Light cleanse support.
                     try_cast(timers, "elixir_4", GATES["elixir_4"], key_mapping["numpad4"], slot="slot_4")
+            else:
+                _debug("ensure_kit(elixir_gun) failed")
 
         # Mortar 5 periodic water field, then blast via Acid Bomb-style cancel path.
         if (time.time() - timers["mortar_5"]) >= GATES["mortar_5"]:
@@ -177,6 +212,10 @@ def healing_mechanist_rotation(stop_event):
                     # Controlled usage only; preserve explicit fast cancel.
                     if try_cast(timers, "acid_cancel", GATES["acid_cancel"], key_mapping["numpad4"], slot="slot_4", wait=0.16):
                         cancel_acid_bomb_like_motion()
+                elif mortar_cast:
+                    _debug("mortar cast ok but ensure_kit(elixir_gun) failed for acid-cancel follow-up")
+            else:
+                _debug("ensure_kit(mortar_kit) failed")
 
         # Barrier Signet as periodic safety net / alacrity gap fill.
         try_cast(timers, "barrier_signet", GATES["barrier_signet"], key_mapping["numpad8"])
