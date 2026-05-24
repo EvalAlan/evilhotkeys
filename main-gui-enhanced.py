@@ -461,5 +461,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = EnhancedSpecRunnerApp(root)
     root.mainloop()
-
-4
