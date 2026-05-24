@@ -16,7 +16,7 @@ class SpecMonitor:
     
     def __init__(self, max_history: int = 100):
         self.max_history = max_history
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         
         # Performance metrics
         self.start_time: Optional[float] = None

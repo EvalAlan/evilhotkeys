@@ -1,12 +1,18 @@
 import keyboard
 import time
 from libs.logger import get_logger
+from libs.spec_monitor import get_monitor
 
 logger = get_logger('keyboard_actions')
 
 # Define a function to press and release a key with an optional delay
 def press_and_release(key, delay=0.02):
     keyboard.press_and_release(key)
+
+    monitor = get_monitor()
+    if monitor.is_running:
+        monitor.record_key_press(key)
+
     if delay > 0:
         time.sleep(delay)
 
@@ -21,6 +27,10 @@ def hold_key_while_pressed(hotkey, keys_to_press, delay=0.02):
 def press(key):
     try:
         keyboard.press(key)
+
+        monitor = get_monitor()
+        if monitor.is_running:
+            monitor.record_key_press(key)
     except ValueError as e:
         logger.error(f"Key '{key}' is not recognized: {e}")
     except Exception as e:
