@@ -179,7 +179,7 @@ class SpecRunnerApp:
                run_spec(selected_game, selected_spec, self.stop_event)
            except Exception as e:
                logger.exception(f"Spec crashed: {e}")
-               self.root.after(0, lambda: self.on_spec_error(str(e)))
+               self.root.after(0, lambda err=str(e): self.on_spec_error(err))
            finally:
                # Always restore button state, even if spec crashes
                self.root.after(0, self.on_spec_complete)

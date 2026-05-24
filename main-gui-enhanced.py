@@ -396,7 +396,7 @@ class EnhancedSpecRunnerApp:
         
         # Give spec time to stop gracefully
         if hasattr(self, 'spec_thread') and self.spec_thread.is_alive():
-            logger.info(f"Spec thread is alive, waiting for termination...")
+            logger.info("Spec thread is alive, waiting for termination...")
             
             # Use a more aggressive approach - check every 0.5 seconds
             for i in range(6):  # 6 * 0.5 = 3 seconds total

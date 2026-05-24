@@ -1,4 +1,3 @@
-from libs.pixel_search import pixel_search
 from libs.pixel_get_color import get_color as pixel_get_color
 from libs.keyboard_actions_monitored import press_and_release, press, release, record_interrupt
 from libs.key_mapping import key_mapping

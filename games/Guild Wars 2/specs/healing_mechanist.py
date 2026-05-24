@@ -7,7 +7,7 @@ import sys
 import time
 import keyboard
 from libs.pixel_get_color import get_color as pixel_get_color
-from libs.keyboard_actions import button_mash, press, release
+from libs.keyboard_actions import button_mash
 from libs.key_mapping import key_mapping
 from libs.logger import get_logger
 from libs.pause import wait_if_paused
@@ -250,7 +250,7 @@ def detect_active_kit(debug=False):
 
     # Fallback: if kit_active_indicator is white but no specific kit detected, default to shortbow
     if debug:
-        log_and_print('warning', f"Kit active but no specific kit detected - defaulting to SHORTBOW")
+        log_and_print('warning', "Kit active but no specific kit detected - defaulting to SHORTBOW")
     return 'shortbow'
 
 

@@ -221,7 +221,7 @@ class CoordinateHelperApp:
                             # Update color preview
                             hex_color = '#{:02x}{:02x}{:02x}'.format(*color)
                             self.color_canvas.config(bg=hex_color)
-                    except Exception as e:
+                    except Exception:
                         pass
                 
                 time.sleep(0.05)  # Update 20 times per second

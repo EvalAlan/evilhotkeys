@@ -2,7 +2,6 @@
 Configuration management for EvilHotKeys
 Supports YAML-based configuration files
 """
-import os
 from pathlib import Path
 from typing import Dict, Any, Optional
 import yaml

@@ -34,7 +34,7 @@ import sys
 import time
 import keyboard
 from libs.pixel_get_color import get_color as pixel_get_color
-from libs.keyboard_actions import button_mash, press, release
+from libs.keyboard_actions import button_mash
 from libs.key_mapping import key_mapping
 from libs.logger import get_logger
 from libs.pause import wait_if_paused
@@ -216,11 +216,11 @@ def swap_legend(stop_event):
     if current_legend_is_shiro:
         # Switched to Assassin - reset Glint facets
         facets_activated = {'nature': False, 'darkness': False, 'strength': False, 'elements': False}
-        log_and_print('info', f"Reset facets (switched to Assassin)")
+        log_and_print('info', "Reset facets (switched to Assassin)")
     else:
         # Switched to Dragon - reset Shiro upkeep
         impossible_odds_active = False
-        log_and_print('info', f"Reset impossible_odds (switched to Dragon)")
+        log_and_print('info', "Reset impossible_odds (switched to Dragon)")
     
     if check_stop_condition(stop_event):
         return False
@@ -354,7 +354,7 @@ def use_weapon_skills(stop_event):
     # Use auto-attack (skill 1 - Mist Swing) if no other skills available
     # Log when we have to fall back to auto-attack
     if random.randint(1, 20) == 1:
-        log_and_print('debug', f"All weapon skills on cooldown, using auto-attack")
+        log_and_print('debug', "All weapon skills on cooldown, using auto-attack")
     button_mash(key_mapping['numpad1'], presses=1)
     time.sleep(0.1)
     
@@ -433,7 +433,7 @@ def power_herald_rotation(stop_event):
         
         # Priority 3: Use weapon skills (swap back to Greatsword if on Staff)
         if loop_count % 10 == 0:
-            log_and_print('debug', f"Attempting weapon skills...")
+            log_and_print('debug', "Attempting weapon skills...")
         
         use_weapon_skills(stop_event)
         if check_stop_condition(stop_event): break
