@@ -426,15 +426,16 @@ def healing_mechanist_rotation(stop_event):
             slot_4_ready = slot_4_color and slot_4_color != (0, 0, 0)
             
             if slot_4_ready:
-                # Fast-cancel sequence matched to power_amalgam_rifle Acid Bomb behavior:
-                # cast slot 4, then immediate weapon-swap cancel.
-                log_and_print('info', "Casting Elixir Gun 4 and fast-canceling with F1")
-                if not button_mash(key_mapping['numpad4'], presses=2, delay=0.04, stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.18)  # minimal cast start window
+                # Fumigate (Elixir Gun 4) - condition cleanse per MetaBattle
+                # heal_mech2.py uses this slot for Acid Bomb but that's actually a Mortar Kit skill
+                log_and_print('info', "Casting Fumigate (Elixir Gun 4)")
+                if not button_mash(key_mapping['numpad4'], stop_check=lambda: check_stop_condition(stop_event)): break
+                time.sleep(0.5)
                 if check_stop_condition(stop_event): break
-
-                if not button_mash(key_mapping['f1'], presses=2, delay=0.03, stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.15)
+                # Cancel with F1
+                log_and_print('info', "Canceling with F1")
+                if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
+                time.sleep(0.5)
                 if check_stop_condition(stop_event): break
                 continue
             
