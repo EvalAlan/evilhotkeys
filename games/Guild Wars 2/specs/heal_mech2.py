@@ -24,12 +24,12 @@ def healing_mechanist_rotation(stop_event):
 
         if pixel_get_color(3015, 1035) == (255, 255, 255):
             if pixel_get_color(2742, 1015) != (0, 0, 0):
-                if not button_mash(key_mapping['numpad4'], stop_check=lambda: check_stop_condition(stop_event)): break  # Acid Bomb
-                time.sleep(0.5)
+                if not button_mash(key_mapping['numpad4'], presses=2, delay=0.04, stop_check=lambda: check_stop_condition(stop_event)): break  # Acid Bomb
+                time.sleep(0.20)
                 if check_stop_condition(stop_event): break
-                
-                if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break  # Weapon Swap
-                time.sleep(0.5)
+
+                if not button_mash(key_mapping['f1'], presses=2, delay=0.03, stop_check=lambda: check_stop_condition(stop_event)): break  # Weapon Swap cancel
+                time.sleep(0.20)
                 if check_stop_condition(stop_event): break
                 continue
 
