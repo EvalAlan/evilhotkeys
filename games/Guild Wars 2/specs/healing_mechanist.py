@@ -381,7 +381,7 @@ def healing_mechanist_rotation(stop_event):
         button_mash('3', stop_check=lambda: check_stop_condition(stop_event))
         if check_stop_condition(stop_event): break
         
-        time.sleep(0.5)
+        time.sleep(0.30)
         if check_stop_condition(stop_event): break
 
         # Kit-specific rotation - check if we're on a kit first (2535, 1030)
@@ -430,12 +430,12 @@ def healing_mechanist_rotation(stop_event):
                 # heal_mech2.py uses this slot for Acid Bomb but that's actually a Mortar Kit skill
                 log_and_print('info', "Casting Fumigate (Elixir Gun 4)")
                 if not button_mash(key_mapping['numpad4'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.5)
+                time.sleep(0.30)
                 if check_stop_condition(stop_event): break
                 # Cancel with F1
                 log_and_print('info', "Canceling with F1")
                 if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.5)
+                time.sleep(0.30)
                 if check_stop_condition(stop_event): break
                 continue
             
@@ -447,14 +447,14 @@ def healing_mechanist_rotation(stop_event):
                 # Super Elixir (Elixir Gun 5) - EXACTLY like heal_mech2.py line 38
                 log_and_print('info', "Casting Super Elixir (Elixir Gun 5)")
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.5)  # Exactly like heal_mech2.py line 39
+                time.sleep(0.30)  # Exactly like heal_mech2.py line 39
                 if check_stop_condition(stop_event): break
                 continue  # Exactly like heal_mech2.py line 41
             
             # Switch to Mortar Kit (numpad0) - EXACTLY like heal_mech2.py line 43
             log_and_print('info', "Elixir Gun: No skills ready, switching to Mortar Kit")
             if not button_mash(key_mapping['numpad0'], stop_check=lambda: check_stop_condition(stop_event)): break
-            time.sleep(0.5)  # Exactly like heal_mech2.py line 44
+            time.sleep(0.30)  # Exactly like heal_mech2.py line 44
             if check_stop_condition(stop_event): break
 
         elif mortar_kit_active:
@@ -466,7 +466,7 @@ def healing_mechanist_rotation(stop_event):
                 # Elixir Shell (Mortar Kit 5) - EXACTLY like heal_mech2.py line 49
                 log_and_print('info', "Casting Elixir Shell (Mortar Kit 5)")
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.5)  # Exactly like heal_mech2.py line 50
+                time.sleep(0.30)  # Exactly like heal_mech2.py line 50
                 if check_stop_condition(stop_event): break
             else:
                 # Switch to Med Kit - press multiple times and wait longer
@@ -477,7 +477,7 @@ def healing_mechanist_rotation(stop_event):
                     time.sleep(0.1)
                 time.sleep(1.0)  # Wait longer for kit switch animation
                 if check_stop_condition(stop_event): break
-            time.sleep(0.5)
+            time.sleep(0.30)
             if check_stop_condition(stop_event): break
 
         elif med_kit_active:
@@ -489,7 +489,7 @@ def healing_mechanist_rotation(stop_event):
                 # Infusion Bomb (Med Kit 4) - key healing skill per MetaBattle
                 log_and_print('info', "Casting Infusion Bomb (Med Kit 4)")
                 if not button_mash(key_mapping['numpad4'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.5)
+                time.sleep(0.30)
                 if check_stop_condition(stop_event): break
                 continue  # Check for more Med Kit skills
             
@@ -500,16 +500,16 @@ def healing_mechanist_rotation(stop_event):
                 # Med Kit slot 5
                 log_and_print('info', "Casting Med Kit 5")
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.5)
+                time.sleep(0.30)
                 if check_stop_condition(stop_event): break
                 continue  # Check for more Med Kit skills
             
             # No Med Kit skills ready, weapon swap back to Shortbow
             log_and_print('info', "Med Kit: No skills ready, weapon swapping with F1")
             if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
-            time.sleep(0.5)
+            time.sleep(0.30)
             if check_stop_condition(stop_event): break
-            time.sleep(0.5)
+            time.sleep(0.30)
             if check_stop_condition(stop_event): break
 
         else:  # shortbow
@@ -558,7 +558,7 @@ def healing_mechanist_rotation(stop_event):
         log_and_print('debug', "Casting Barrier Signet")
         if not button_mash(key_mapping['numpad8'], stop_check=lambda: check_stop_condition(stop_event)):
             break
-        time.sleep(0.5)
+        time.sleep(0.30)
         if check_stop_condition(stop_event): break
 
     log_and_print('info', "Stopping Mechanist Alacrity Support Healer rotation")
