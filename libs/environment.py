@@ -10,6 +10,13 @@ def is_gnome():
     desktop = os.environ.get('XDG_CURRENT_DESKTOP', '').lower()
     return 'gnome' in desktop
 
+
+def is_kde():
+    """Check if we're running under KDE Plasma"""
+    desktop = os.environ.get('XDG_CURRENT_DESKTOP', '').lower()
+    session_desktop = os.environ.get('XDG_SESSION_DESKTOP', '').lower()
+    return 'kde' in desktop or 'plasma' in desktop or 'kde' in session_desktop or 'plasma' in session_desktop
+
 def is_gnome_wayland():
     """Check if we're running under GNOME on Wayland"""
     return is_wayland() and is_gnome()
@@ -33,9 +40,11 @@ def get_environment_info():
     return {
         'is_wayland': is_wayland(),
         'is_gnome': is_gnome(),
+        'is_kde': is_kde(),
         'is_gnome_wayland': is_gnome_wayland(),
         'gnome_screenshot_support': check_gnome_screenshot_support() if is_gnome_wayland() else False,
         'wayland_display': os.environ.get('WAYLAND_DISPLAY'),
         'desktop': os.environ.get('XDG_CURRENT_DESKTOP'),
+        'session_desktop': os.environ.get('XDG_SESSION_DESKTOP'),
         'session_type': os.environ.get('XDG_SESSION_TYPE')
     } 
