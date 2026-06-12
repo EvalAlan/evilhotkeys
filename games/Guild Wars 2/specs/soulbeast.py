@@ -187,9 +187,7 @@ def check_skill_available(coords, threshold: int | None = 210):
     # special handling for beast skill 2 (Brutal Charge) which stays dim
     if coords == DEFAULT_COORDS.get('beast_skill_2'):
         return brightness > 25
-    if threshold is None:
-        return brightness > SKILL_READY_PIXEL_MIN
-    return brightness > threshold or brightness > SKILL_READY_PIXEL_MIN
+    return brightness > threshold
 
 
 def wait_until_on_cooldown(coords, timeout_seconds=1.75, poll_seconds=0.05):
@@ -363,7 +361,8 @@ def power_soulbeast_rotation(stop_event):
                 'weapon_2': check_skill_available(DEFAULT_COORDS['weapon_2'], threshold=None),
                 'weapon_3': check_skill_available(DEFAULT_COORDS['weapon_3'], threshold=15),
                 'weapon_4': check_skill_available(DEFAULT_COORDS['weapon_4'], threshold=None),
-                'weapon_5': check_skill_available(DEFAULT_COORDS['weapon_5'], threshold=20),
+                # Axe 5 has false-positive dim reads around 25 after casting; require a real bright pixel.
+                'weapon_5': check_skill_available(DEFAULT_COORDS['weapon_5'], threshold=80),
             }
         else:
             weapon_ready = {
@@ -508,7 +507,9 @@ def power_soulbeast_rotation(stop_event):
 
         # Weapon skill priorities — cast at most one (independent of utilities/beasts)
         if current_set == 'axe':
-            priority = ['weapon_4', 'weapon_5', 'weapon_3', 'weapon_2']
+            # MetaBattle Axe/Axe loop: Path of Scars -> Winter's Bite -> Splitblade -> Whirling Defense.
+            # Whirling Defense must not sit before Winter/Splitblade, or its dim post-cast pixel starves them.
+            priority = ['weapon_4', 'weapon_3', 'weapon_2', 'weapon_5']
             weapon_timeout_overrides = {
                 'weapon_2': (1.0, 0.04),
                 'weapon_3': (1.0, 0.04),
