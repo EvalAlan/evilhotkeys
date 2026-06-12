@@ -487,6 +487,15 @@ def healing_mechanist_rotation(stop_event):
                     time.sleep(0.1)
                 time.sleep(1.0)
                 if check_stop_condition(stop_event): break
+                # Verify the switch landed — if not, try once more
+                med_verify = pixel_get_color(*DEFAULT_COORDS['indicator_med_kit'])
+                if med_verify != (255, 255, 255):
+                    log_and_print('debug', "Med Kit indicator not white after switch, retrying toggle")
+                    for _ in range(3):
+                        if not button_mash(key_mapping['numpad6'], stop_check=lambda: check_stop_condition(stop_event)): break
+                        time.sleep(0.1)
+                    time.sleep(1.0)
+                    if check_stop_condition(stop_event): break
             time.sleep(0.35)
             if check_stop_condition(stop_event): break
 
