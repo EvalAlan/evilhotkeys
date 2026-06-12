@@ -159,6 +159,23 @@ UTILITY_FORCE_INTERVAL = {
 
 UTILITY_NO_CONFIRM = {'utility_elite', 'utility_2', 'utility_1', 'utility_3'}
 
+# Conservative internal cooldown gates. Pixel reads are noisy on axe; these gates
+# stop dim/false-positive pixels from re-selecting the same skill every loop.
+WEAPON_SLOT_COOLDOWNS = {
+    'hammer': {
+        'weapon_2': 5.0,
+        'weapon_3': 8.0,
+        'weapon_4': 8.0,
+        'weapon_5': 16.0,
+    },
+    'axe': {
+        'weapon_2': 6.0,
+        'weapon_3': 9.0,
+        'weapon_4': 12.0,
+        'weapon_5': 18.0,
+    },
+}
+
 SKILL_READY_PIXEL_MIN = 40
 SKILL_ON_COOLDOWN_MAX = 75
 # MetaBattle hammer + axe/axe loops are much longer than a 5.5s swap cadence.
@@ -224,6 +241,30 @@ def get_skill_brightness(name):
         return 0
     color = pixel_get_color(coords[0], coords[1])
     return sum(color) if color else 0
+
+
+def get_shifted_skill_brightness(name, x_offsets=(-12, -8, -4, 0, 4)):
+    """Sample a small horizontal band around a skill pixel and return max brightness.
+
+    Axe icons are reading black/dim at the exact standard coordinate. Sampling left
+    catches icon art without permanently moving every spec's shared coordinates.
+    """
+    coords = DEFAULT_COORDS.get(name)
+    if not coords:
+        return 0
+    x, y = coords
+    readings = []
+    for offset in x_offsets:
+        color = pixel_get_color(x + offset, y)
+        if isinstance(color, (tuple, list)):
+            readings.append(sum(color))
+        else:
+            readings.append(0)
+    return max(readings) if readings else 0
+
+
+def check_shifted_skill_available(name, threshold):
+    return get_shifted_skill_brightness(name) > threshold
 
 
 def pixel_not_black(coords, threshold=12):
@@ -337,6 +378,11 @@ def power_soulbeast_rotation(stop_event):
     last_use_times = {name: 0.0 for name in DEFAULT_COORDS if name.startswith('utility')}
     last_use_times.update({'beast_skill_1': 0.0, 'beast_skill_2': 0.0, 'beast_skill_3': 0.0})
     last_weapon_swap = time.time()  # Start the swap timer now so we don't swap immediately
+    last_weapon_use_times = {
+        weapon_set: {slot: 0.0 for slot in slots}
+        for weapon_set, slots in WEAPON_SLOT_COOLDOWNS.items()
+    }
+    weapon_casts_this_set = set()
     last_set_seen = detect_weapon_set()
 
     while not stop_event.is_set():
@@ -347,6 +393,10 @@ def power_soulbeast_rotation(stop_event):
 
         current_time = time.time()
         current_set = detect_weapon_set()
+        if current_set != last_set_seen:
+            weapon_casts_this_set = set()
+            last_set_seen = current_set
+            log_and_print('debug', f"Detected weapon set transition -> {current_set.upper()} (reset per-set cast tracking)")
 
         if not ensure_beastmode():
             time.sleep(0.2)
@@ -359,10 +409,9 @@ def power_soulbeast_rotation(stop_event):
         if current_set == 'axe':
             weapon_ready = {
                 'weapon_2': check_skill_available(DEFAULT_COORDS['weapon_2'], threshold=None),
-                'weapon_3': check_skill_available(DEFAULT_COORDS['weapon_3'], threshold=15),
+                'weapon_3': check_shifted_skill_available('weapon_3', threshold=35),
                 'weapon_4': check_skill_available(DEFAULT_COORDS['weapon_4'], threshold=None),
-                # Axe 5 has false-positive dim reads around 25 after casting; require a real bright pixel.
-                'weapon_5': check_skill_available(DEFAULT_COORDS['weapon_5'], threshold=80),
+                'weapon_5': check_shifted_skill_available('weapon_5', threshold=80),
             }
         else:
             weapon_ready = {
@@ -376,6 +425,11 @@ def power_soulbeast_rotation(stop_event):
             'beast_skill_2': check_skill_available(DEFAULT_COORDS['beast_skill_2'], threshold=None),
             'beast_skill_3': check_skill_available(DEFAULT_COORDS['beast_skill_3'], threshold=None),
         }
+        for slot, cooldown in WEAPON_SLOT_COOLDOWNS.get(current_set, {}).items():
+            time_since_weapon = current_time - last_weapon_use_times[current_set].get(slot, 0.0)
+            if weapon_ready.get(slot) and time_since_weapon < cooldown:
+                log_and_print('debug', f"Suppressing {slot} ({current_set}) due to internal cooldown {time_since_weapon:.1f}/{cooldown:.1f}s")
+                weapon_ready[slot] = False
         utilities_ready = {}
         for name in ['utility_elite', 'utility_2', 'utility_1', 'utility_3', 'utility_heal']:
             if name == 'utility_elite':
@@ -390,6 +444,11 @@ def power_soulbeast_rotation(stop_event):
             key: get_skill_brightness(key) for key in ['beast_skill_1', 'beast_skill_2', 'beast_skill_3'] if key in DEFAULT_COORDS
         }
         weapon_brightness = {slot: get_skill_brightness(slot) for slot in ['weapon_2', 'weapon_3', 'weapon_4', 'weapon_5']}
+        shifted_weapon_brightness = {}
+        if current_set == 'axe':
+            shifted_weapon_brightness = {
+                slot: get_shifted_skill_brightness(slot) for slot in ['weapon_3', 'weapon_5']
+            }
         utility_brightness = {name: get_skill_brightness(name) for name in ['utility_elite', 'utility_2', 'utility_1', 'utility_3', 'utility_heal']}
         utility_status = {key: utilities_ready[key] for key in utilities_ready}
         beastmode_pixel = get_beastmode_pixel()
@@ -397,7 +456,8 @@ def power_soulbeast_rotation(stop_event):
             'info',
             (
                 f"--- LOOP {rotation_count} ---\n"
-                f"Set={current_set.upper()} | WeaponReady={weapon_ready} brightness={weapon_brightness}\n"
+                f"Set={current_set.upper()} | WeaponReady={weapon_ready} brightness={weapon_brightness} "
+                f"shifted={shifted_weapon_brightness}\n"
                 f"BeastReady={beast_status} brightness={beast_brightness} | BeastmodePixel={beastmode_pixel}\n"
                 f"Utilities={utility_status} brightness={utility_brightness}"
             )
@@ -532,6 +592,8 @@ def power_soulbeast_rotation(stop_event):
                 log_and_print('info', f">>> PRIORITY: {label}")
                 wait_timeout, delay = weapon_timeout_overrides.get(slot, (1.4, 0.05))
                 if cast_skill(WEAPON_KEY_OPTIONS[slot], DEFAULT_COORDS[slot], presses=3, delay=delay, wait_timeout=wait_timeout):
+                    last_weapon_use_times[current_set][slot] = time.time()
+                    weapon_casts_this_set.add(slot)
                     weapon_cast = True
                     break
 
@@ -542,8 +604,22 @@ def power_soulbeast_rotation(stop_event):
         # Weapon swap cadence — always check
         time_since_swap = current_time - last_weapon_swap
         if time_since_swap > WEAPON_SET_MIN_TIME:
-            if ensure_weapon_swap(current_set):
+            required_before_swap = {
+                'hammer': ['weapon_5'],
+                'axe': ['weapon_4', 'weapon_3', 'weapon_2'],
+            }.get(current_set, [])
+            missing_ready_required = [
+                slot for slot in required_before_swap
+                if slot not in weapon_casts_this_set and weapon_ready.get(slot, False)
+            ]
+            if missing_ready_required:
+                log_and_print(
+                    'debug',
+                    f"Deferring weapon swap on {current_set.upper()} - required skills still ready/uncast: {missing_ready_required}"
+                )
+            elif ensure_weapon_swap(current_set):
                 last_weapon_swap = time.time()
+                weapon_casts_this_set = set()
                 last_set_seen = detect_weapon_set()
                 log_and_print('debug', f"Weapon swap -> {last_set_seen.upper()} (interval={time_since_swap:.1f}s)")
                 time.sleep(0.25)
