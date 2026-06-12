@@ -61,6 +61,7 @@ DEFAULT_COORDS = {
 }
 
 BAR_SLOTS = {
+    'slot_1': DEFAULT_COORDS['slot_1'],
     'slot_2': DEFAULT_COORDS['slot_2'],
     'slot_3': DEFAULT_COORDS['slot_3'],
     'slot_4': DEFAULT_COORDS['slot_4'],
@@ -458,59 +459,76 @@ def healing_mechanist_rotation(stop_event):
             if check_stop_condition(stop_event): break
 
         elif mortar_kit_active:
-            # Mortar Kit - EXACTLY like heal_mech2.py lines 47-57
+            # Mortar Kit - slot 1 (Mortar Shot) then slot 5 (Elixir Shell)
+            slot_1_color = pixel_get_color(*BAR_SLOTS['slot_1'])
+            slot_1_ready = slot_1_color and slot_1_color != (0, 0, 0)
+
+            if slot_1_ready:
+                log_and_print('info', "Casting Mortar Shot (Mortar Kit 1)")
+                if not button_mash(key_mapping['numpad1'], stop_check=lambda: check_stop_condition(stop_event)): break
+                time.sleep(0.35)
+                if check_stop_condition(stop_event): break
+
             slot_5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
             slot_5_ready = slot_5_color and slot_5_color != (0, 0, 0)
-            
+
             if slot_5_ready:
-                # Elixir Shell (Mortar Kit 5) - EXACTLY like heal_mech2.py line 49
+                # Elixir Shell (Mortar Kit 5)
                 log_and_print('info', "Casting Elixir Shell (Mortar Kit 5)")
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.35)  # Exactly like heal_mech2.py line 50
+                time.sleep(0.35)
                 if check_stop_condition(stop_event): break
-            else:
-                # Switch to Med Kit - press multiple times and wait longer
-                log_and_print('info', "Mortar Kit: No Elixir Shell ready, switching to Med Kit")
-                # Press numpad6 multiple times to ensure it registers
+
+            if not slot_1_ready and not slot_5_ready:
+                # Switch to Med Kit
+                log_and_print('info', "Mortar Kit: No skills ready, switching to Med Kit")
                 for _ in range(3):
                     if not button_mash(key_mapping['numpad6'], stop_check=lambda: check_stop_condition(stop_event)): break
                     time.sleep(0.1)
-                time.sleep(1.0)  # Wait longer for kit switch animation
+                time.sleep(1.0)
                 if check_stop_condition(stop_event): break
             time.sleep(0.35)
             if check_stop_condition(stop_event): break
 
         elif med_kit_active:
-            # Med Kit - Check Infusion Bomb (slot 4) first per MetaBattle, then slot 5
+            # Med Kit - slot 1 (Med Blaster) first, then slot 4 (Infusion Bomb), then slot 5
+            slot_1_color = pixel_get_color(*BAR_SLOTS['slot_1'])
+            slot_1_ready = slot_1_color and slot_1_color != (0, 0, 0)
+
+            if slot_1_ready:
+                log_and_print('info', "Casting Med Blaster (Med Kit 1)")
+                if not button_mash(key_mapping['numpad1'], stop_check=lambda: check_stop_condition(stop_event)): break
+                time.sleep(0.35)
+                if check_stop_condition(stop_event): break
+
             slot_4_color = pixel_get_color(*BAR_SLOTS['slot_4'])
             slot_4_ready = slot_4_color and slot_4_color != (0, 0, 0)
-            
+
             if slot_4_ready:
                 # Infusion Bomb (Med Kit 4) - key healing skill per MetaBattle
                 log_and_print('info', "Casting Infusion Bomb (Med Kit 4)")
                 if not button_mash(key_mapping['numpad4'], stop_check=lambda: check_stop_condition(stop_event)): break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
-                continue  # Check for more Med Kit skills
-            
+
             slot_5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
             slot_5_ready = slot_5_color and slot_5_color != (0, 0, 0)
-            
+
             if slot_5_ready:
                 # Med Kit slot 5
                 log_and_print('info', "Casting Med Kit 5")
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
-                continue  # Check for more Med Kit skills
-            
-            # No Med Kit skills ready, weapon swap back to Shortbow
-            log_and_print('info', "Med Kit: No skills ready, weapon swapping with F1")
-            if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
-            time.sleep(0.35)
-            if check_stop_condition(stop_event): break
-            time.sleep(0.35)
-            if check_stop_condition(stop_event): break
+
+            if not slot_1_ready and not slot_4_ready and not slot_5_ready:
+                # No Med Kit skills ready, weapon swap back to Shortbow
+                log_and_print('info', "Med Kit: No skills ready, weapon swapping with F1")
+                if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
+                time.sleep(0.35)
+                if check_stop_condition(stop_event): break
+                time.sleep(0.35)
+                if check_stop_condition(stop_event): break
 
         else:  # shortbow
             # Short Bow: Check slot 4, then slot 5, else switch to Elixir Gun
