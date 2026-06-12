@@ -178,28 +178,7 @@ STOP_KEY = key_mapping.get('numpad1', 'numpad1')
 
 
 def check_stop_condition(stop_event):
-    if stop_event.is_set():
-        return True
-    if keyboard.is_pressed(STOP_KEY):
-        # Debounce: ignore stop key for 200ms after a kit switch
-        if is_stop_key_debounced():
-            return True
-    return False
-
-
-# Timestamp of the last kit switch — used to debounce the stop key
-_last_kit_switch_time = 0.0
-
-
-def kit_switch_debounce():
-    """Call after any kit switch to record the timestamp for stop-key debounce."""
-    global _last_kit_switch_time
-    _last_kit_switch_time = time.time()
-
-
-def is_stop_key_debounced():
-    """Return True if enough time has passed since the last kit switch."""
-    return (time.time() - _last_kit_switch_time) >= 0.2
+    return not keyboard.is_pressed(STOP_KEY) or stop_event.is_set()
 
 
 def get_slot_brightness(slot_name):
@@ -472,8 +451,6 @@ def healing_mechanist_rotation(stop_event):
             if not button_mash(key_mapping['numpad0'], stop_check=lambda: check_stop_condition(stop_event)): break
             time.sleep(0.35)
             if check_stop_condition(stop_event): break
-            kit_switch_debounce()
-            if check_stop_condition(stop_event): break
 
         elif mortar_kit_active:
             # Mortar Kit - EXACTLY like heal_mech2.py lines 47-57
@@ -503,7 +480,6 @@ def healing_mechanist_rotation(stop_event):
                     if not button_mash(key_mapping['numpad6'], stop_check=lambda: check_stop_condition(stop_event)): break
                     time.sleep(0.5)
                     if check_stop_condition(stop_event): break
-                kit_switch_debounce()
             time.sleep(0.35)
             if check_stop_condition(stop_event): break
 
@@ -578,8 +554,6 @@ def healing_mechanist_rotation(stop_event):
                         break
                     time.sleep(0.35)  # Wait for kit switch to complete
                     if check_stop_condition(stop_event): break
-                    kit_switch_debounce()
-                    if check_stop_condition(stop_event): break
             time.sleep(0.3)
             if check_stop_condition(stop_event): break
 
@@ -611,6 +585,9 @@ def run(stop_event):
             except Exception as exc:
                 log_and_print('error', f"Unexpected error in Healing Mechanist rotation: {exc}")
                 raise
+            # Wait for key release before re-arming to prevent instant re-trigger
+            while keyboard.is_pressed(STOP_KEY) and not stop_event.is_set():
+                time.sleep(0.05)
         time.sleep(0.05)
 
     logger.info("Healing Mechanist spec ended")
