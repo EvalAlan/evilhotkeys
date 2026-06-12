@@ -351,6 +351,16 @@ def power_soulbeast_rotation(stop_event):
             time.sleep(0.2)
             continue
 
+        # Weapon swap cadence — check early so we always swap on time
+        time_since_swap = current_time - last_weapon_swap
+        if time_since_swap > WEAPON_SET_MIN_TIME:
+            if ensure_weapon_swap(current_set):
+                last_weapon_swap = time.time()
+                last_set_seen = detect_weapon_set()
+                log_and_print('debug', f"Weapon swap -> {last_set_seen.upper()} (interval={time_since_swap:.1f}s)")
+                time.sleep(0.25)
+                continue
+
         # Skill readiness
         weapon_ready = {
             'weapon_2': check_skill_available(DEFAULT_COORDS['weapon_2'], threshold=None),
@@ -525,16 +535,6 @@ def power_soulbeast_rotation(stop_event):
         if not cast_this_loop:
             if cast_skill(WEAPON_KEY_OPTIONS['weapon_1'], DEFAULT_COORDS['weapon_1'], presses=1, delay=0.02, wait_timeout=0.6):
                 log_and_print('debug', "Auto-attack filler (weapon 1)")
-
-        # Weapon swap cadence — always check
-        time_since_swap = current_time - last_weapon_swap
-        if time_since_swap > WEAPON_SET_MIN_TIME:
-            if ensure_weapon_swap(current_set):
-                last_weapon_swap = time.time()
-                last_set_seen = detect_weapon_set()
-                log_and_print('debug', f"Weapon swap -> {last_set_seen.upper()} (interval={time_since_swap:.1f}s)")
-                time.sleep(0.25)
-                continue
 
         time.sleep(0.15)
 
