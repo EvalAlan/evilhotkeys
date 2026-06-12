@@ -360,6 +360,7 @@ def healing_mechanist_rotation(stop_event):
     Meta reference: MetaBattle (July 27 2024, up-to-date for June 24 2025 patch).
     """
     loop_count = 0
+    mortar_elixir_shell_used = False  # Track whether Elixir Shell has been cast this Mortar visit
     while not stop_event.is_set():
         loop_count += 1
         wait_if_paused()
@@ -459,7 +460,7 @@ def healing_mechanist_rotation(stop_event):
             if check_stop_condition(stop_event): break
 
         elif mortar_kit_active:
-            # Mortar Kit - slot 1 (Mortar Shot) then slot 5 (Elixir Shell)
+            # Mortar Kit - slot 1 (Mortar Shot), slot 5 (Elixir Shell), then Med Kit
             slot_1_color = pixel_get_color(*BAR_SLOTS['slot_1'])
             slot_1_ready = slot_1_color and slot_1_color != (0, 0, 0)
 
@@ -473,21 +474,24 @@ def healing_mechanist_rotation(stop_event):
             slot_5_ready = slot_5_color and slot_5_color != (0, 0, 0)
 
             if slot_5_ready:
-                # Elixir Shell (Mortar Kit 5)
                 log_and_print('info', "Casting Elixir Shell (Mortar Kit 5)")
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
+                mortar_elixir_shell_used = True
 
-            if not slot_1_ready and not slot_5_ready:
-                # Switch to Med Kit
-                log_and_print('info', "Mortar Kit: No skills ready, switching to Med Kit")
+            # Switch to Mortar->Med when: both on cooldown now, OR Elixir Shell
+            # was already used this visit (so we've gotten value from Mortar)
+            neither_ready = not slot_1_ready and not slot_5_ready
+            if neither_ready or mortar_elixir_shell_used:
+                log_and_print('info', "Mortar Kit: switching to Med Kit")
                 for _ in range(3):
                     if not button_mash(key_mapping['numpad6'], stop_check=lambda: check_stop_condition(stop_event)): break
                     time.sleep(0.1)
                 time.sleep(1.0)
                 if check_stop_condition(stop_event): break
-                # Verify the switch landed — if not, try once more
+                mortar_elixir_shell_used = False  # Reset for next Mortar visit
+                # Verify the switch landed
                 med_verify = pixel_get_color(*DEFAULT_COORDS['indicator_med_kit'])
                 if med_verify != (255, 255, 255):
                     log_and_print('debug', "Med Kit indicator not white after switch, retrying toggle")
