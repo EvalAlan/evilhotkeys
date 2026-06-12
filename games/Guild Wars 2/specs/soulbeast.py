@@ -335,7 +335,7 @@ def power_soulbeast_rotation(stop_event):
     rotation_count = 0
     last_use_times = {name: 0.0 for name in DEFAULT_COORDS if name.startswith('utility')}
     last_use_times.update({'beast_skill_1': 0.0, 'beast_skill_2': 0.0, 'beast_skill_3': 0.0})
-    last_weapon_swap = 0.0
+    last_weapon_swap = time.time()  # Start the swap timer now so we don't swap immediately
     last_set_seen = detect_weapon_set()
 
     while not stop_event.is_set():
