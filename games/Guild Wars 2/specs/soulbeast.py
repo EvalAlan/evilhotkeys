@@ -31,7 +31,7 @@ logger = get_logger('power_soulbeast')
 logger.propagate = True
 
 # Enable/disable detailed logging
-ENABLE_DETAILED_LOGGING = False
+ENABLE_DETAILED_LOGGING = True
 
 
 def log_and_print(level, msg):
@@ -376,14 +376,17 @@ def power_soulbeast_rotation(stop_event):
         beast_brightness = {
             key: get_skill_brightness(key) for key in ['beast_skill_1', 'beast_skill_2', 'beast_skill_3'] if key in DEFAULT_COORDS
         }
+        weapon_brightness = {slot: get_skill_brightness(slot) for slot in ['weapon_2', 'weapon_3', 'weapon_4', 'weapon_5']}
+        utility_brightness = {name: get_skill_brightness(name) for name in ['utility_elite', 'utility_2', 'utility_1', 'utility_3', 'utility_heal']}
         utility_status = {key: utilities_ready[key] for key in utilities_ready}
+        beastmode_pixel = get_beastmode_pixel()
         log_and_print(
             'info',
             (
                 f"--- LOOP {rotation_count} ---\n"
-                f"Set={current_set.upper()} | WeaponReady={weapon_ready} "
-                f"| BeastReady={beast_status} brightness={beast_brightness}\n"
-                f"Utilities={utility_status}"
+                f"Set={current_set.upper()} | WeaponReady={weapon_ready} brightness={weapon_brightness}\n"
+                f"BeastReady={beast_status} brightness={beast_brightness} | BeastmodePixel={beastmode_pixel}\n"
+                f"Utilities={utility_status} brightness={utility_brightness}"
             )
         )
 
