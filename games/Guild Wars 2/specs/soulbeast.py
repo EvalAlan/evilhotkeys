@@ -159,7 +159,7 @@ UTILITY_FORCE_INTERVAL = {
 
 UTILITY_NO_CONFIRM = {'utility_elite', 'utility_2', 'utility_1', 'utility_3'}
 
-SKILL_READY_PIXEL_MIN = 20
+SKILL_READY_PIXEL_MIN = 40
 SKILL_ON_COOLDOWN_MAX = 75
 WEAPON_SET_MIN_TIME = 5.5
 BEASTMODE_TARGET_COLOR = (112, 112, 122)  # observed Beastmode-active color
@@ -351,17 +351,6 @@ def power_soulbeast_rotation(stop_event):
             time.sleep(0.2)
             continue
 
-        # Weapon swap cadence — check early so we always swap on time
-        current_time = time.time()
-        time_since_swap = current_time - last_weapon_swap
-        if time_since_swap > WEAPON_SET_MIN_TIME:
-            if ensure_weapon_swap(current_set):
-                last_weapon_swap = time.time()
-                last_set_seen = detect_weapon_set()
-                log_and_print('debug', f"Weapon swap -> {last_set_seen.upper()} (interval={time_since_swap:.1f}s)")
-                time.sleep(0.25)
-                continue
-
         # Skill readiness
         weapon_ready = {
             'weapon_2': check_skill_available(DEFAULT_COORDS['weapon_2'], threshold=None),
@@ -401,6 +390,9 @@ def power_soulbeast_rotation(stop_event):
             )
         )
 
+        # Track whether anything was cast this loop
+        cast_this_loop = False
+
         # Utilities / buffs
         for util in ['utility_elite', 'utility_2', 'utility_1', 'utility_3', 'utility_heal']:
             time_since = current_time - last_use_times[util]
@@ -416,15 +408,18 @@ def power_soulbeast_rotation(stop_event):
                 start_brightness = get_skill_brightness(util)
                 if cast_skill(UTILITY_KEY_OPTIONS[util], DEFAULT_COORDS[util], presses=3, delay=0.05, wait_timeout=2.0):
                     last_use_times[util] = current_time
+                    cast_this_loop = True
                     break
                 end_brightness = get_skill_brightness(util)
                 if util in UTILITY_NO_CONFIRM and end_brightness <= SKILL_ON_COOLDOWN_MAX:
-                    log_and_print('debug', f"Cooldown detected post-cast for {label} despite no direct confirmation (brightness={end_brightness})")
+                    log_and_print('debug', f"Cooldown detected post-cast for {label} (brightness={end_brightness})")
                     last_use_times[util] = current_time
+                    cast_this_loop = True
                     break
                 if util in UTILITY_NO_CONFIRM and end_brightness < start_brightness - 40:
                     log_and_print('debug', f"Brightness drop suggests {label} landed (pre={start_brightness}, post={end_brightness})")
                     last_use_times[util] = current_time
+                    cast_this_loop = True
                     break
             elif time_since > UTILITY_FORCE_INTERVAL[util]:
                 brightness = get_skill_brightness(util)
@@ -445,97 +440,101 @@ def power_soulbeast_rotation(stop_event):
                 start_brightness = brightness
                 if cast_skill(UTILITY_KEY_OPTIONS[util], DEFAULT_COORDS[util], presses=3, delay=0.05, wait_timeout=2.0):
                     last_use_times[util] = current_time
+                    cast_this_loop = True
                     break
                 end_brightness = get_skill_brightness(util)
                 if util in UTILITY_NO_CONFIRM and end_brightness <= SKILL_ON_COOLDOWN_MAX:
                     log_and_print('debug', f"Cooldown detected post-force for {label} (brightness={end_brightness})")
                     last_use_times[util] = current_time
+                    cast_this_loop = True
                     break
                 if util in UTILITY_NO_CONFIRM and end_brightness < start_brightness - 40:
                     log_and_print('debug', f"Brightness drop after force suggests {label} landed (pre={start_brightness}, post={end_brightness})")
                     last_use_times[util] = current_time
+                    cast_this_loop = True
                     break
 
         # Beast skills (Worldly Impact > Maul > third skill if available)
-        if beast_ready['beast_skill_2'] and (current_time - last_use_times['beast_skill_2']) > 8.0:
-            if not beastmode_active() and not ensure_beastmode():
-                continue
-            log_and_print('info', ">>> PRIORITY: Beast Skill 2 (Worldly Impact)")
-            if cast_skill(BEAST_SKILL_KEYS['beast_skill_2'], DEFAULT_COORDS['beast_skill_2'], presses=2, delay=0.05, wait_timeout=1.5):
-                last_use_times['beast_skill_2'] = current_time
-                continue
-            else:
-                log_and_print('debug', f"Worldly Impact failed to cast - beast pixel={get_beastmode_pixel()}")
-                if ensure_beastmode() and cast_skill(BEAST_SKILL_KEYS['beast_skill_2'], DEFAULT_COORDS['beast_skill_2'], presses=2, delay=0.05, wait_timeout=1.5):
-                    last_use_times['beast_skill_2'] = time.time()
-                    continue
-                if not beastmode_active():
-                    continue
+        if not cast_this_loop and beast_ready['beast_skill_2'] and (current_time - last_use_times['beast_skill_2']) > 8.0:
+            if beastmode_active() or ensure_beastmode():
+                log_and_print('info', ">>> PRIORITY: Beast Skill 2 (Worldly Impact)")
+                if cast_skill(BEAST_SKILL_KEYS['beast_skill_2'], DEFAULT_COORDS['beast_skill_2'], presses=2, delay=0.05, wait_timeout=1.5):
+                    last_use_times['beast_skill_2'] = current_time
+                    cast_this_loop = True
+                else:
+                    log_and_print('debug', f"Worldly Impact failed - beast pixel={get_beastmode_pixel()}")
+                    if ensure_beastmode() and cast_skill(BEAST_SKILL_KEYS['beast_skill_2'], DEFAULT_COORDS['beast_skill_2'], presses=2, delay=0.05, wait_timeout=1.5):
+                        last_use_times['beast_skill_2'] = time.time()
+                        cast_this_loop = True
 
-        if beast_ready['beast_skill_1'] and (current_time - last_use_times['beast_skill_1']) > 5.0:
-            if not beastmode_active() and not ensure_beastmode():
-                continue
-            log_and_print('info', ">>> PRIORITY: Beast Skill 1 (Maul)")
-            if cast_skill(BEAST_SKILL_KEYS['beast_skill_1'], DEFAULT_COORDS['beast_skill_1'], presses=2, delay=0.05, wait_timeout=1.2):
-                last_use_times['beast_skill_1'] = current_time
-                continue
-            else:
-                log_and_print('debug', f"Maul failed to cast - beast pixel={get_beastmode_pixel()}")
-                if ensure_beastmode() and cast_skill(BEAST_SKILL_KEYS['beast_skill_1'], DEFAULT_COORDS['beast_skill_1'], presses=2, delay=0.05, wait_timeout=1.2):
-                    last_use_times['beast_skill_1'] = time.time()
-                    continue
-                if not beastmode_active():
-                    continue
+        if not cast_this_loop and beast_ready['beast_skill_1'] and (current_time - last_use_times['beast_skill_1']) > 5.0:
+            if beastmode_active() or ensure_beastmode():
+                log_and_print('info', ">>> PRIORITY: Beast Skill 1 (Maul)")
+                if cast_skill(BEAST_SKILL_KEYS['beast_skill_1'], DEFAULT_COORDS['beast_skill_1'], presses=2, delay=0.05, wait_timeout=1.2):
+                    last_use_times['beast_skill_1'] = current_time
+                    cast_this_loop = True
+                else:
+                    log_and_print('debug', f"Maul failed - beast pixel={get_beastmode_pixel()}")
+                    if ensure_beastmode() and cast_skill(BEAST_SKILL_KEYS['beast_skill_1'], DEFAULT_COORDS['beast_skill_1'], presses=2, delay=0.05, wait_timeout=1.2):
+                        last_use_times['beast_skill_1'] = time.time()
+                        cast_this_loop = True
 
-        beast3_coords = DEFAULT_COORDS.get('beast_skill_3')
-        if beast3_coords and beast_ready['beast_skill_3'] and (current_time - last_use_times['beast_skill_3']) > 8.0:
-            if not beastmode_active() and not ensure_beastmode():
-                continue
-            log_and_print('info', ">>> PRIORITY: Beast Skill 3")
-            if cast_skill(BEAST_SKILL_KEYS['beast_skill_3'], beast3_coords, presses=2, delay=0.05, wait_timeout=1.2):
-                last_use_times['beast_skill_3'] = current_time
-                continue
-            else:
-                log_and_print('debug', f"Beast Skill 3 failed to cast - beast pixel={get_beastmode_pixel()}")
-                if ensure_beastmode() and cast_skill(BEAST_SKILL_KEYS['beast_skill_3'], beast3_coords, presses=2, delay=0.05, wait_timeout=1.2):
-                    last_use_times['beast_skill_3'] = time.time()
-                    continue
-                if not beastmode_active():
-                    continue
+        if not cast_this_loop and beast_ready['beast_skill_3'] and (current_time - last_use_times['beast_skill_3']) > 8.0:
+            beast3_coords = DEFAULT_COORDS.get('beast_skill_3')
+            if beast3_coords:
+                if beastmode_active() or ensure_beastmode():
+                    log_and_print('info', ">>> PRIORITY: Beast Skill 3")
+                    if cast_skill(BEAST_SKILL_KEYS['beast_skill_3'], beast3_coords, presses=2, delay=0.05, wait_timeout=1.2):
+                        last_use_times['beast_skill_3'] = current_time
+                        cast_this_loop = True
+                    else:
+                        log_and_print('debug', f"Beast Skill 3 failed - beast pixel={get_beastmode_pixel()}")
+                        if ensure_beastmode() and cast_skill(BEAST_SKILL_KEYS['beast_skill_3'], beast3_coords, presses=2, delay=0.05, wait_timeout=1.2):
+                            last_use_times['beast_skill_3'] = time.time()
+                            cast_this_loop = True
 
         # Weapon skill priorities based on set
-        if current_set == 'axe':
-            priority = ['weapon_4', 'weapon_5', 'weapon_3', 'weapon_2']
-            weapon_timeout_overrides = {
-                'weapon_2': (1.0, 0.04),
-                'weapon_3': (1.0, 0.04),
-                'weapon_4': (1.2, 0.06),
-                'weapon_5': (1.2, 0.06),
-            }
-        else:
-            priority = ['weapon_2', 'weapon_3', 'weapon_4', 'weapon_5']  # Savage Shock Wave, Overbearing Smash, Wild Swing, Unleashed Thump
-            weapon_timeout_overrides = {
-                'weapon_2': (1.1, 0.05),
-                'weapon_3': (1.2, 0.06),
-                'weapon_4': (1.4, 0.08),
-                'weapon_5': (2.2, 0.1),
-            }
+        if not cast_this_loop:
+            if current_set == 'axe':
+                priority = ['weapon_4', 'weapon_5', 'weapon_3', 'weapon_2']
+                weapon_timeout_overrides = {
+                    'weapon_2': (1.0, 0.04),
+                    'weapon_3': (1.0, 0.04),
+                    'weapon_4': (1.2, 0.06),
+                    'weapon_5': (1.2, 0.06),
+                }
+            else:
+                priority = ['weapon_2', 'weapon_3', 'weapon_4', 'weapon_5']
+                weapon_timeout_overrides = {
+                    'weapon_2': (1.1, 0.05),
+                    'weapon_3': (1.2, 0.06),
+                    'weapon_4': (1.4, 0.08),
+                    'weapon_5': (2.2, 0.1),
+                }
 
-        triggered = False
-        for slot in priority:
-            if weapon_ready.get(slot, False):
-                label = f"Weapon Skill {slot[-1]} ({'AXE' if current_set == 'axe' else 'HAMMER'})"
-                log_and_print('info', f">>> PRIORITY: {label}")
-                wait_timeout, delay = weapon_timeout_overrides.get(slot, (1.4, 0.05))
-                if cast_skill(WEAPON_KEY_OPTIONS[slot], DEFAULT_COORDS[slot], presses=3, delay=delay, wait_timeout=wait_timeout):
-                    triggered = True
-                    break
-        if triggered:
-            continue
+            for slot in priority:
+                if weapon_ready.get(slot, False):
+                    label = f"Weapon Skill {slot[-1]} ({'AXE' if current_set == 'axe' else 'HAMMER'})"
+                    log_and_print('info', f">>> PRIORITY: {label}")
+                    wait_timeout, delay = weapon_timeout_overrides.get(slot, (1.4, 0.05))
+                    if cast_skill(WEAPON_KEY_OPTIONS[slot], DEFAULT_COORDS[slot], presses=3, delay=delay, wait_timeout=wait_timeout):
+                        cast_this_loop = True
+                        break
 
-        # Auto-attack filler
-        if cast_skill(WEAPON_KEY_OPTIONS['weapon_1'], DEFAULT_COORDS['weapon_1'], presses=1, delay=0.02, wait_timeout=0.6):
-            log_and_print('debug', "Auto-attack filler (weapon 1)")
+        # Auto-attack filler (only if nothing else was cast)
+        if not cast_this_loop:
+            if cast_skill(WEAPON_KEY_OPTIONS['weapon_1'], DEFAULT_COORDS['weapon_1'], presses=1, delay=0.02, wait_timeout=0.6):
+                log_and_print('debug', "Auto-attack filler (weapon 1)")
+
+        # Weapon swap cadence — always check, regardless of what was cast
+        time_since_swap = current_time - last_weapon_swap
+        if time_since_swap > WEAPON_SET_MIN_TIME:
+            if ensure_weapon_swap(current_set):
+                last_weapon_swap = time.time()
+                last_set_seen = detect_weapon_set()
+                log_and_print('debug', f"Weapon swap -> {last_set_seen.upper()} (interval={time_since_swap:.1f}s)")
+                time.sleep(0.25)
+                continue
 
         time.sleep(0.15)
 
