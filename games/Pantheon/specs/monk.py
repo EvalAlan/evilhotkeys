@@ -2,7 +2,6 @@ from libs.keyboard_actions import press_and_release
 from libs.key_mapping import key_mapping
 import time
 import keyboard
-import pyautogui
 
 
 

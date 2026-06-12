@@ -46,18 +46,23 @@ EvilHotKeys is a Python script that allows you to automate key presses and scan 
 
 ### Quick Start
 
-**Console Mode:**
+**Recommended launcher (new):**
+```bash
+python3 evilhotkeys.py                 # enhanced GUI (default)
+python3 evilhotkeys.py --mode console  # console mode
+python3 evilhotkeys.py --mode gui      # classic GUI mode
+```
+
+**Shell launchers:**
+```bash
+./bin/launch-gui.sh
+./bin/launch-console.sh
+```
+
+**Legacy direct entrypoints (still work):**
 ```bash
 python main.py
-```
-
-**GUI Mode:**
-```bash
 python main-gui.py
-```
-
-**Enhanced GUI with Monitoring (NEW!):**
-```bash
 python main-gui-enhanced.py
 ```
 
@@ -186,6 +191,18 @@ def run(stop_event):
 **Permission errors:**
 - Ensure your user has access to input devices
 - Consider running with appropriate permissions
+
+## Building an Executable
+
+Build a packaged desktop executable (Linux):
+
+```bash
+chmod +x build-executable.sh
+./build-executable.sh
+```
+
+Output directory:
+- `dist/EvilHotKeys/`
 
 ## Contributing
 

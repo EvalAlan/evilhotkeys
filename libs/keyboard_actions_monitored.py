@@ -13,13 +13,13 @@ logger = get_logger('keyboard_actions_monitored')
 
 def press_and_release(key, delay=0.02):
     """Press and release a key with monitoring"""
+    # Base implementation already records monitor events.
     keyboard.press_and_release(key)
-    
-    # Record to monitor
+
     monitor = get_monitor()
     if monitor.is_running:
         monitor.record_key_press(key)
-    
+
     if delay > 0:
         time.sleep(delay)
 
@@ -34,12 +34,8 @@ def hold_key_while_pressed(hotkey, keys_to_press, delay=0.02):
 
 def press(key):
     """Press a key with monitoring"""
+    # Base implementation already records monitor events.
     _press(key)
-    
-    # Record to monitor
-    monitor = get_monitor()
-    if monitor.is_running:
-        monitor.record_key_press(key)
 
 
 def release(key):

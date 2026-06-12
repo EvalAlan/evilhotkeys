@@ -1,6 +1,6 @@
 from libs.pixel_search import pixel_search
 from libs.pixel_get_color import get_color as pixel_get_color
-from libs.keyboard_actions import press_and_release, press, release, button_mash
+from libs.keyboard_actions import button_mash
 from libs.key_mapping import key_mapping
 import time
 import keyboard

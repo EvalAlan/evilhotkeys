@@ -8,7 +8,6 @@ from libs.menu_customization import customize_menu, customize_specs
 from libs.environment import get_environment_info
 from libs.logger import get_logger
 from libs.config_manager import get_config_manager
-import libs.pause  # Initialize pause system
 
 logger = get_logger('main')
 config = get_config_manager()

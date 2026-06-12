@@ -1,4 +1,3 @@
-from libs.pixel_get_color import get_color as pixel_get_color
 from libs.keyboard_actions import press_and_release, press
 from libs.key_mapping import key_mapping
 from PIL import ImageGrab

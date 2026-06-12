@@ -162,27 +162,27 @@ class WeaponSetTracker:
         if skill_name == 'spear_4':
             self.spear_4_last_used = current_time
             if self.current_set != 'spear':
-                log_and_print('debug', f"Skill use indicates Spear set - correcting state")
+                log_and_print('debug', "Skill use indicates Spear set - correcting state")
                 self.current_set = 'spear'
         elif skill_name == 'spear_2':
             self.spear_2_last_used = current_time
             if self.current_set != 'spear':
-                log_and_print('debug', f"Skill use indicates Spear set - correcting state")
+                log_and_print('debug', "Skill use indicates Spear set - correcting state")
                 self.current_set = 'spear'
         elif skill_name == 'dagger_5':
             self.dagger_5_last_used = current_time
             if self.current_set != 'dagger_sword':
-                log_and_print('debug', f"Skill use indicates Dagger/Sword set - correcting state")
+                log_and_print('debug', "Skill use indicates Dagger/Sword set - correcting state")
                 self.current_set = 'dagger_sword'
         elif skill_name == 'dagger_2':
             self.dagger_2_last_used = current_time
             if self.current_set != 'dagger_sword':
-                log_and_print('debug', f"Skill use indicates Dagger/Sword set - correcting state")
+                log_and_print('debug', "Skill use indicates Dagger/Sword set - correcting state")
                 self.current_set = 'dagger_sword'
         elif skill_name == 'dagger_3':
             self.dagger_3_last_used = current_time
             if self.current_set != 'dagger_sword':
-                log_and_print('debug', f"Skill use indicates Dagger/Sword set - correcting state")
+                log_and_print('debug', "Skill use indicates Dagger/Sword set - correcting state")
                 self.current_set = 'dagger_sword'
     
     def validate_with_cooldowns(self, weapon_2_ready, weapon_3_ready, weapon_4_ready, weapon_5_ready):
@@ -193,7 +193,7 @@ class WeaponSetTracker:
         if (current_time - self.spear_4_last_used < 2.0 or 
             current_time - self.spear_2_last_used < 2.0):
             if self.current_set != 'spear':
-                log_and_print('debug', f"Recent Spear skill use detected - correcting to Spear")
+                log_and_print('debug', "Recent Spear skill use detected - correcting to Spear")
                 self.current_set = 'spear'
             return 'spear'
         
@@ -202,7 +202,7 @@ class WeaponSetTracker:
             current_time - self.dagger_2_last_used < 2.0 or
             current_time - self.dagger_3_last_used < 2.0):
             if self.current_set != 'dagger_sword':
-                log_and_print('debug', f"Recent Dagger/Sword skill use detected - correcting to Dagger/Sword")
+                log_and_print('debug', "Recent Dagger/Sword skill use detected - correcting to Dagger/Sword")
                 self.current_set = 'dagger_sword'
             return 'dagger_sword'
         

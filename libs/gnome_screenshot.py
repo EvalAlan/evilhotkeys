@@ -3,7 +3,6 @@ import tempfile
 import os
 import time
 from PIL import Image
-import io
 from libs.logger import get_logger
 
 logger = get_logger('gnome_screenshot')
@@ -98,7 +97,7 @@ class GnomeScreenshotManager:
                     # Clean up temporary file
                     try:
                         os.unlink(tmp_path)
-                    except:
+                    except OSError:
                         pass
             
             return False

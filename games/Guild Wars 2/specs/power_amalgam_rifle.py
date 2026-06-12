@@ -352,7 +352,7 @@ def execute_acid_bomb_burst(stop_event):
             log_and_print('info', f"Jump Shot confirmed fired: on_cooldown={jump_shot_on_cd}")
             break
         elif retry_attempt == 0:
-            log_and_print('info', f"Jump Shot may not have fired, retrying...")
+            log_and_print('info', "Jump Shot may not have fired, retrying...")
             time.sleep(0.3)  # Wait before retry
     
     if not waited and not jump_shot_on_cd:
@@ -448,7 +448,7 @@ def execute_morph_burst(stop_event):
                     log_and_print('info', f"Thorns fired on retry attempt {retry_attempt+1}")
                 break
             elif retry_attempt == 0:
-                log_and_print('info', f"Thorns may not have fired, retrying...")
+                log_and_print('info', "Thorns may not have fired, retrying...")
                 time.sleep(0.2)  # Wait a bit before retry
         
         if not waited and not thorns_on_cd:
@@ -477,7 +477,7 @@ def execute_morph_burst(stop_event):
                     log_and_print('info', f"Obliterate fired on retry attempt {retry_attempt+1}")
                 break
             elif retry_attempt == 0:
-                log_and_print('info', f"Obliterate may not have fired, retrying...")
+                log_and_print('info', "Obliterate may not have fired, retrying...")
                 time.sleep(0.3)  # Wait before retry
         
         if not waited and not obliterate_on_cd:
@@ -529,7 +529,7 @@ def execute_morph_burst(stop_event):
         obliterate_ready = check_skill_available(DEFAULT_COORDS['toolbelt_4'])
         log_and_print('info', f"Post-Evolve Obliterate check (attempt {attempt+1}/10): {obliterate_ready}")
         if obliterate_ready:
-            log_and_print('info', f">>> STEP 5/6: Using Offensive Protocol: Obliterate (F4) - post-Evolve")
+            log_and_print('info', ">>> STEP 5/6: Using Offensive Protocol: Obliterate (F4) - post-Evolve")
             button_mash('4', presses=4, delay=0.05)  # Increased from 3 to 4 presses
             time.sleep(0.25)
             obliterate_fired = True
@@ -547,7 +547,7 @@ def execute_morph_burst(stop_event):
         demolish_ready = check_skill_available(DEFAULT_COORDS['toolbelt_2'])
         log_and_print('info', f"Post-Evolve Demolish check (attempt {attempt+1}/8): {demolish_ready}")
         if demolish_ready:
-            log_and_print('info', f">>> STEP 6/6: Using Offensive Protocol: Demolish (F2) - post-Evolve")
+            log_and_print('info', ">>> STEP 6/6: Using Offensive Protocol: Demolish (F2) - post-Evolve")
             button_mash('2', presses=4, delay=0.05)  # Increased from 3 to 4 presses
             time.sleep(0.25)
             demolish_fired = True
@@ -620,7 +620,7 @@ def execute_filler_burst(stop_event):
                 log_and_print('info', f"Blunderbuss confirmed fired: on_cooldown={blunderbuss_on_cd}")
                 break
             elif retry_attempt == 0:
-                log_and_print('info', f"Blunderbuss may not have fired, retrying...")
+                log_and_print('info', "Blunderbuss may not have fired, retrying...")
                 time.sleep(0.2)  # Wait before retry
         
         if not waited and not blunderbuss_on_cd:
@@ -828,7 +828,7 @@ def execute_ideal_combined_burst(stop_event, napalm_ready, acid_bomb_ready, morp
                         log_and_print('info', f"Jump Shot confirmed fired: on_cooldown={jump_shot_on_cd}")
                         break
                     elif retry_attempt == 0:
-                        log_and_print('info', f"Jump Shot may not have fired, retrying...")
+                        log_and_print('info', "Jump Shot may not have fired, retrying...")
                         time.sleep(0.3)  # Wait before retry
                 
                 if not waited and not jump_shot_on_cd:
@@ -895,7 +895,7 @@ def execute_ideal_combined_burst(stop_event, napalm_ready, acid_bomb_ready, morp
                         log_and_print('info', f"Thorns fired on retry attempt {retry_attempt+1}")
                     break
                 elif retry_attempt == 0:
-                    log_and_print('info', f"Thorns may not have fired, retrying...")
+                    log_and_print('info', "Thorns may not have fired, retrying...")
                     time.sleep(0.3)  # Wait a bit before retry
             
             if not waited and not thorns_on_cd:
@@ -953,7 +953,7 @@ def execute_ideal_combined_burst(stop_event, napalm_ready, acid_bomb_ready, morp
                         log_and_print('info', f"Demolish fired on retry attempt {retry_attempt+1}")
                     break
                 elif retry_attempt == 0:
-                    log_and_print('info', f"Demolish may not have fired, retrying...")
+                    log_and_print('info', "Demolish may not have fired, retrying...")
                     time.sleep(0.3)  # Wait before retry
             
             if not waited and not demolish_on_cd:
@@ -983,7 +983,7 @@ def execute_ideal_combined_burst(stop_event, napalm_ready, acid_bomb_ready, morp
             obliterate_ready = check_skill_available(DEFAULT_COORDS['toolbelt_4'])
             log_and_print('info', f"Post-Evolve Obliterate check (attempt {attempt+1}/10): {obliterate_ready}")
             if obliterate_ready:
-                log_and_print('info', f">>> STEP 9/12: Using Offensive Protocol: Obliterate (F4) - post-Evolve")
+                log_and_print('info', ">>> STEP 9/12: Using Offensive Protocol: Obliterate (F4) - post-Evolve")
                 button_mash('4', presses=4, delay=0.05)  # Increased from 3 to 4 presses
                 time.sleep(0.25)
                 obliterate_fired = True
@@ -1054,7 +1054,7 @@ def execute_ideal_combined_burst(stop_event, napalm_ready, acid_bomb_ready, morp
                     log_and_print('info', f"Blunderbuss confirmed fired: on_cooldown={blunderbuss_on_cd}")
                     break
                 elif retry_attempt == 0:
-                    log_and_print('info', f"Blunderbuss may not have fired, retrying...")
+                    log_and_print('info', "Blunderbuss may not have fired, retrying...")
                     time.sleep(0.3)  # Wait before retry
             
             if not waited and not blunderbuss_on_cd:
@@ -1236,7 +1236,7 @@ def power_amalgam_rifle_rotation(stop_event):
                         last_jump_shot_use = current_time
                         break
                     elif retry_attempt == 0:
-                        log_and_print('info', f"Jump Shot may not have fired, retrying...")
+                        log_and_print('info', "Jump Shot may not have fired, retrying...")
                         time.sleep(0.3)  # Wait before retry
                 
                 if not waited and not jump_shot_on_cd:
@@ -1267,7 +1267,7 @@ def power_amalgam_rifle_rotation(stop_event):
                         log_and_print('info', f"Blunderbuss confirmed fired: on_cooldown={blunderbuss_on_cd}")
                         break
                     elif retry_attempt == 0:
-                        log_and_print('info', f"Blunderbuss may not have fired, retrying...")
+                        log_and_print('info', "Blunderbuss may not have fired, retrying...")
                         time.sleep(0.3)  # Wait before retry
                 
                 if not waited and not blunderbuss_on_cd:
@@ -1391,7 +1391,7 @@ def power_amalgam_rifle_rotation(stop_event):
                             log_and_print('info', f"Thorns fired on retry attempt {retry_attempt+1}")
                         break
                     elif retry_attempt == 0:
-                        log_and_print('info', f"Thorns may not have fired, retrying...")
+                        log_and_print('info', "Thorns may not have fired, retrying...")
                         time.sleep(0.3)  # Wait a bit before retry
                 
                 if not waited and not thorns_on_cd:
@@ -1555,7 +1555,7 @@ def power_amalgam_rifle_rotation(stop_event):
                         log_and_print('info', f"Jump Shot confirmed fired: on_cooldown={jump_shot_on_cd}")
                         break
                     elif retry_attempt == 0:
-                        log_and_print('info', f"Jump Shot may not have fired, retrying...")
+                        log_and_print('info', "Jump Shot may not have fired, retrying...")
                         time.sleep(0.3)  # Wait before retry
                 
                 if not waited and not jump_shot_on_cd:
@@ -1630,7 +1630,7 @@ def power_amalgam_rifle_rotation(stop_event):
                         last_jump_shot_use = current_time
                         break
                     elif retry_attempt == 0:
-                        log_and_print('info', f"Jump Shot may not have fired, retrying...")
+                        log_and_print('info', "Jump Shot may not have fired, retrying...")
                         time.sleep(0.3)  # Wait before retry
                 
                 if not waited and not jump_shot_on_cd:
@@ -1660,7 +1660,7 @@ def power_amalgam_rifle_rotation(stop_event):
                         log_and_print('info', f"Blunderbuss confirmed fired: on_cooldown={blunderbuss_on_cd}")
                         break
                     elif retry_attempt == 0:
-                        log_and_print('info', f"Blunderbuss may not have fired, retrying...")
+                        log_and_print('info', "Blunderbuss may not have fired, retrying...")
                         time.sleep(0.3)  # Wait before retry
                 
                 if not waited and not blunderbuss_on_cd:
