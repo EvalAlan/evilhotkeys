@@ -336,53 +336,55 @@ def ensure_weapon_swap(current_set):
     return False
 
 
+# Internal state tracking for pet mode (pixel coord unreliable for Untamed)
+_pet_unleashed_state = False  # False = ranger mode, True = pet unleashed
+
+
 def is_pet_unleashed():
-    """Check if pet is currently unleashed via pixel color."""
-    color = pixel_get_color(*DEFAULT_COORDS.get('pet_unleashed', (2596, 970)))
-    if not color:
-        return False
-    brightness = sum(color)
-    return brightness > 100
+    """Return tracked pet state (pixel coord unreliable for Untamed)."""
+    return _pet_unleashed_state
+
+
+def set_pet_unleashed(state):
+    """Update tracked pet state."""
+    global _pet_unleashed_state
+    _pet_unleashed_state = state
 
 
 def ensure_pet_unleashed():
     """
     Ensure pet is in Unleashed state.
-    Sends Unleash Pet key and waits briefly for the toggle to register.
+    Sends Unleash Pet key and tracks state internally.
     """
-    if is_pet_unleashed():
-        log_and_print('debug', "Pet is already unleashed")
+    if _pet_unleashed_state:
+        log_and_print('debug', "Pet is already unleashed (tracked)")
         return True
     log_and_print('info', "Pet not unleashed — sending Unleash Pet")
     for key in UNLEASH_PET_KEYS:
         button_mash(key, presses=2, delay=0.05)
         time.sleep(0.3)
-        if is_pet_unleashed():
-            log_and_print('info', "Pet unleashed successfully")
-            return True
-    # Pixel may not be reliable — try once more and assume success
-    log_and_print('debug', "Could not verify pet unleashed via pixel — assuming success after key press")
-    return True
+        set_pet_unleashed(True)
+        log_and_print('info', "Pet unleashed (tracked)")
+        return True
+    return False
 
 
 def ensure_ranger_unleashed():
     """
     Ensure ranger is in normal state (pet NOT unleashed).
-    Sends Unleash Ranger key and waits briefly for the toggle to register.
+    Sends Unleash Ranger key and tracks state internally.
     """
-    if not is_pet_unleashed():
-        log_and_print('debug', "Ranger is already in normal mode")
+    if not _pet_unleashed_state:
+        log_and_print('debug', "Ranger is already in normal mode (tracked)")
         return True
     log_and_print('info', "Pet is unleashed — sending Unleash Ranger")
     for key in UNLEASH_RANGER_KEYS:
         button_mash(key, presses=2, delay=0.05)
         time.sleep(0.3)
-        if not is_pet_unleashed():
-            log_and_print('info', "Ranger mode restored")
-            return True
-    # Pixel may not be reliable — try once more and assume success
-    log_and_print('debug', "Could not verify ranger mode via pixel — assuming success after key press")
-    return True
+        set_pet_unleashed(False)
+        log_and_print('info', "Ranger mode restored (tracked)")
+        return True
+    return False
 
 
 def unleash_pet():
@@ -390,6 +392,7 @@ def unleash_pet():
     log_and_print('info', "Unleashing pet")
     tap_keys(UNLEASH_PET_KEYS)
     time.sleep(0.3)
+    set_pet_unleashed(True)
 
 
 def unleash_ranger():
@@ -397,6 +400,7 @@ def unleash_ranger():
     log_and_print('info', "Unleashing ranger")
     tap_keys(UNLEASH_RANGER_KEYS)
     time.sleep(0.3)
+    set_pet_unleashed(False)
 
 
 def send_pet_attack():
@@ -557,6 +561,7 @@ def power_untamed_rotation(stop_event):
     last_utility_times = dict(LAST_UTILITY_TIMES)
     last_weapon_swap = 0.0
     last_set_seen = detect_weapon_set()
+    set_pet_unleashed(False)  # Reset tracked state at start of rotation
 
     log_and_print('debug', f"Starting rotation — initial weapon set: {last_set_seen.upper()}")
 
