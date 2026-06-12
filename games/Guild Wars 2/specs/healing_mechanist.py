@@ -395,11 +395,10 @@ def healing_mechanist_rotation(stop_event):
             med_color = pixel_get_color(*DEFAULT_COORDS['indicator_med_kit'])
             
             elixir_gun_active = elixir_color == (255, 255, 255)
-            med_kit_active = med_color == (255, 255, 255)
             # Mortar Kit is greenish/white when active - higher threshold to avoid false positives
             mortar_brightness = sum(mortar_color) if mortar_color else 0
-            # Only claim Mortar if Med is NOT also bright (avoids pickup during Med transition)
-            mortar_kit_active = (mortar_brightness > 200) and not med_kit_active
+            mortar_kit_active = mortar_brightness > 200  # Greenish (147,221,131) = 499 brightness
+            med_kit_active = med_color == (255, 255, 255)
         else:
             # We're on main weapon (shortbow)
             elixir_gun_active = False
@@ -428,8 +427,14 @@ def healing_mechanist_rotation(stop_event):
             
             if slot_4_ready:
                 # Fumigate (Elixir Gun 4) - condition cleanse per MetaBattle
+                # heal_mech2.py uses this slot for Acid Bomb but that's actually a Mortar Kit skill
                 log_and_print('info', "Casting Fumigate (Elixir Gun 4)")
                 if not button_mash(key_mapping['numpad4'], stop_check=lambda: check_stop_condition(stop_event)): break
+                time.sleep(0.35)
+                if check_stop_condition(stop_event): break
+                # Cancel with F1
+                log_and_print('info', "Canceling with F1")
+                if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
                 continue
@@ -449,7 +454,7 @@ def healing_mechanist_rotation(stop_event):
             # Switch to Mortar Kit (numpad0) - EXACTLY like heal_mech2.py line 43
             log_and_print('info', "Elixir Gun: No skills ready, switching to Mortar Kit")
             if not button_mash(key_mapping['numpad0'], stop_check=lambda: check_stop_condition(stop_event)): break
-            time.sleep(0.35)
+            time.sleep(0.35)  # Exactly like heal_mech2.py line 44
             if check_stop_condition(stop_event): break
 
         elif mortar_kit_active:
@@ -472,14 +477,6 @@ def healing_mechanist_rotation(stop_event):
                     time.sleep(0.1)
                 time.sleep(1.0)  # Wait longer for kit switch animation
                 if check_stop_condition(stop_event): break
-                # Re-detect kit after settle to confirm we landed on Med Kit
-                med_check = pixel_get_color(*DEFAULT_COORDS['indicator_med_kit'])
-                if med_check != (255, 255, 255):
-                    # Still not on Med, try one more press
-                    log_and_print('debug', "Med Kit indicator not white after settle, pressing again")
-                    if not button_mash(key_mapping['numpad6'], stop_check=lambda: check_stop_condition(stop_event)): break
-                    time.sleep(0.5)
-                    if check_stop_condition(stop_event): break
             time.sleep(0.35)
             if check_stop_condition(stop_event): break
 
@@ -526,7 +523,7 @@ def healing_mechanist_rotation(stop_event):
                 log_and_print('info', "Casting Magnetic Shield (Shortbow 4)")
                 if not button_mash(key_mapping['numpad4'], stop_check=lambda: check_stop_condition(stop_event)):
                     break
-                time.sleep(0.35)
+                time.sleep(0.8)  # Wait for ability to complete
                 if check_stop_condition(stop_event): break
             else:
                 slot_5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
@@ -538,21 +535,21 @@ def healing_mechanist_rotation(stop_event):
                     log_and_print('info', "Casting Static Shield (Shortbow 5)")
                     if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)):
                         break
-                    time.sleep(0.35)
+                    time.sleep(0.8)  # Wait for ability to complete
                     if check_stop_condition(stop_event): break
                     
                     # Energizing Slam
                     log_and_print('info', "Casting Energizing Slam (Shortbow 2)")
                     if not button_mash(key_mapping['numpad2'], stop_check=lambda: check_stop_condition(stop_event)):
                         break
-                    time.sleep(0.35)
+                    time.sleep(0.8)  # Wait for ability to complete
                     if check_stop_condition(stop_event): break
                 else:
                     # Switch to Elixir Gun
                     log_and_print('info', "Shortbow: No skills ready, switching to Elixir Gun")
                     if not button_mash(key_mapping['numpad7'], stop_check=lambda: check_stop_condition(stop_event)):
                         break
-                    time.sleep(0.35)  # Wait for kit switch to complete
+                    time.sleep(0.8)  # Wait for kit switch to complete
                     if check_stop_condition(stop_event): break
             time.sleep(0.3)
             if check_stop_condition(stop_event): break
@@ -585,9 +582,6 @@ def run(stop_event):
             except Exception as exc:
                 log_and_print('error', f"Unexpected error in Healing Mechanist rotation: {exc}")
                 raise
-            # Wait for key release before re-arming to prevent instant re-trigger
-            while keyboard.is_pressed(STOP_KEY) and not stop_event.is_set():
-                time.sleep(0.05)
         time.sleep(0.05)
 
     logger.info("Healing Mechanist spec ended")
