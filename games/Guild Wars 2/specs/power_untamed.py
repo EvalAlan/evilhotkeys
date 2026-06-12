@@ -93,8 +93,7 @@ DEFAULT_COORDS = {
 WEAPON_INDICATOR_PIXEL = DEFAULT_COORDS['weapon_set_indicator']
 
 # Unleashed Ambush ready pixel — bright when available
-UNLEASHED_AMBUSH_PIXEL_AXE = (2743, 1013)   # weapon_4 slot when on axe
-UNLEASHED_AMBUSH_PIXEL_MACE = (2743, 1013)  # weapon_4 slot when on mace
+UNLEASHED_AMBUSH_PIXEL = (2743, 1013)  # weapon_4 slot — ambush skill after swap
 
 
 def resolve_key(path: str, default):
@@ -192,7 +191,7 @@ UTILITY_FORCE_INTERVAL = {
 SKILL_READY_PIXEL_MIN = 40
 SKILL_ON_COOLDOWN_MAX = 75
 WEAPON_SET_MIN_TIME = 5.0
-UNLEASH_AMBUSH_THRESHOLD = 180  # brightness threshold for unleashed ambush availability
+UNLEASH_AMBUSH_THRESHOLD = 120  # brightness threshold for unleashed ambush availability
 
 STOP_KEY = key_mapping.get('numpad1', 'numpad1')
 
@@ -393,12 +392,12 @@ def cast_unleashed_ambush(stop_event):
     Uses weapon_4 key (standard slot for unleashed ambush after weapon swap)
     with brightness-based availability check.
     """
-    ambush_pixel = UNLEASHED_AMBUSH_PIXEL_AXE  # same coord for both sets
+    ambush_pixel = UNLEASHED_AMBUSH_PIXEL  # same coord for both sets
     color = pixel_get_color(*ambush_pixel)
     brightness = sum(color) if color else 0
 
     if brightness < UNLEASH_AMBUSH_THRESHOLD:
-        log_and_print('danger', f"Unleashed Ambush pixel brightness too low ({brightness}), skipping")
+        log_and_print('debug', f"Unleashed Ambush pixel brightness too low ({brightness}), skipping")
         return False
 
     log_and_print('info', ">>> PRIORITY: Unleashed Ambush")
@@ -524,14 +523,19 @@ def power_untamed_rotation(stop_event):
     if check_stop_condition(stop_event):
         return
 
-    # Set initial weapon set (prefer axe to start)
+    # Set initial weapon set (prefer axe to start, but don't force if swap on CD)
     current_set = detect_weapon_set()
     if current_set != 'axe':
-        log_and_print('info', "Not on axe set — weapon swapping to start in axe")
-        ensure_weapon_swap(current_set)
-        time.sleep(0.3)
-        current_set = detect_weapon_set()
-        log_and_print('debug', f"Initial weapon set after swap attempt: {current_set.upper()}")
+        swap_indicator = pixel_get_color(*DEFAULT_COORDS['weapon_swap'])
+        swap_ready = not swap_indicator or sum(swap_indicator) > SKILL_READY_PIXEL_MIN
+        if swap_ready:
+            log_and_print('info', "Not on axe set — weapon swapping to start in axe")
+            ensure_weapon_swap(current_set)
+            time.sleep(0.3)
+            current_set = detect_weapon_set()
+            log_and_print('debug', f"Initial weapon set after swap: {current_set.upper()}")
+        else:
+            log_and_print('debug', f"Weapon swap on CD — starting on {current_set.upper()} (swap to axe later)")
 
     # Step 2: Unleashed Ambush at start
     cast_unleashed_ambush(stop_event)
