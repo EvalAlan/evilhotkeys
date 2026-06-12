@@ -491,7 +491,7 @@ def healing_mechanist_rotation(stop_event):
             if check_stop_condition(stop_event): break
 
         elif med_kit_active:
-            # Med Kit - slot 1 (Med Blaster) first, then slot 4 (Infusion Bomb), then slot 5
+            # Med Kit - slot 1 (Med Blaster), slot 4 (Vital Blast), slot 5 (Infusion Bomb)
             slot_1_color = pixel_get_color(*BAR_SLOTS['slot_1'])
             slot_1_ready = slot_1_color and slot_1_color != (0, 0, 0)
 
@@ -505,8 +505,8 @@ def healing_mechanist_rotation(stop_event):
             slot_4_ready = slot_4_color and slot_4_color != (0, 0, 0)
 
             if slot_4_ready:
-                # Infusion Bomb (Med Kit 4) - key healing skill per MetaBattle
-                log_and_print('info', "Casting Infusion Bomb (Med Kit 4)")
+                # Vital Blast (Med Kit 4)
+                log_and_print('info', "Casting Vital Blast (Med Kit 4)")
                 if not button_mash(key_mapping['numpad4'], stop_check=lambda: check_stop_condition(stop_event)): break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
@@ -515,8 +515,8 @@ def healing_mechanist_rotation(stop_event):
             slot_5_ready = slot_5_color and slot_5_color != (0, 0, 0)
 
             if slot_5_ready:
-                # Med Kit slot 5
-                log_and_print('info', "Casting Med Kit 5")
+                # Infusion Bomb (Med Kit 5)
+                log_and_print('info', "Casting Infusion Bomb (Med Kit 5)")
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
