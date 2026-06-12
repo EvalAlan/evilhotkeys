@@ -169,10 +169,10 @@ WEAPON_SLOT_COOLDOWNS = {
         'weapon_5': 16.0,
     },
     'axe': {
-        'weapon_2': 6.0,
-        'weapon_3': 9.0,
-        'weapon_4': 12.0,
-        'weapon_5': 18.0,
+        'weapon_2': 3.0,
+        'weapon_3': 4.0,
+        'weapon_4': 8.0,
+        'weapon_5': 10.0,
     },
 }
 
@@ -382,6 +382,7 @@ def power_soulbeast_rotation(stop_event):
         weapon_set: {slot: 0.0 for slot in slots}
         for weapon_set, slots in WEAPON_SLOT_COOLDOWNS.items()
     }
+    last_hammer5_cast_time = 0.0
     weapon_casts_this_set = set()
     last_set_seen = detect_weapon_set()
 
@@ -592,7 +593,10 @@ def power_soulbeast_rotation(stop_event):
                 log_and_print('info', f">>> PRIORITY: {label}")
                 wait_timeout, delay = weapon_timeout_overrides.get(slot, (1.4, 0.05))
                 if cast_skill(WEAPON_KEY_OPTIONS[slot], DEFAULT_COORDS[slot], presses=3, delay=delay, wait_timeout=wait_timeout):
-                    last_weapon_use_times[current_set][slot] = time.time()
+                    cast_time = time.time()
+                    last_weapon_use_times[current_set][slot] = cast_time
+                    if current_set == 'hammer' and slot == 'weapon_5':
+                        last_hammer5_cast_time = cast_time
                     weapon_casts_this_set.add(slot)
                     weapon_cast = True
                     break
@@ -606,13 +610,19 @@ def power_soulbeast_rotation(stop_event):
         if time_since_swap > WEAPON_SET_MIN_TIME:
             required_before_swap = {
                 'hammer': ['weapon_5'],
-                'axe': ['weapon_4', 'weapon_3', 'weapon_2'],
+                'axe': ['weapon_4', 'weapon_3', 'weapon_2', 'weapon_5'],
             }.get(current_set, [])
             missing_ready_required = [
                 slot for slot in required_before_swap
                 if slot not in weapon_casts_this_set and weapon_ready.get(slot, False)
             ]
-            if missing_ready_required:
+            hammer5_age = time.time() - last_hammer5_cast_time
+            if current_set == 'hammer' and hammer5_age < 2.5:
+                log_and_print(
+                    'debug',
+                    f"Deferring weapon swap on HAMMER - Unleashed Thump cast lockout {hammer5_age:.1f}/2.5s"
+                )
+            elif missing_ready_required:
                 log_and_print(
                     'debug',
                     f"Deferring weapon swap on {current_set.upper()} - required skills still ready/uncast: {missing_ready_required}"
