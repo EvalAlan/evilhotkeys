@@ -105,8 +105,16 @@ def cast(label, key, stop_event, presses=1, delay=0.04, wait=POST_CAST_DELAY):
 
 
 def in_grenade_kit():
-    # Existing kit check from original spec.
-    return pixel_search((255, 255, 255), 2170, 2045, 2205, 2080)
+    """Detect whether Grenade Kit is active.
+
+    The old white-pixel bundle search is unreliable on this layout. In the latest
+    logs, pressing Grenade Kit makes the utility toggle pixel go dark, while the
+    bar slots change to the grenade bar. Use the old search first, then fall back
+    to the utility-1 toggle brightness.
+    """
+    if pixel_search((255, 255, 255), 2170, 2045, 2205, 2080):
+        return True
+    return get_brightness('utility_1') <= 20
 
 
 def get_status(in_kit):
@@ -132,6 +140,10 @@ def get_status(in_kit):
     }
     return {
         'mode': 'GRENADE' if in_kit else 'SPEAR',
+        'kit_detector': {
+            'old_search': bool(pixel_search((255, 255, 255), 2170, 2045, 2205, 2080)),
+            'grenade_toggle_brightness': get_brightness('utility_1'),
+        },
         'slot_ready': slot_ready,
         'slot_brightness': slot_brightness,
         'utilities_ready': utilities_ready,
@@ -144,7 +156,8 @@ def log_status(loop_count, status):
         'info',
         (
             f"--- LOOP {loop_count} ---\n"
-            f"Mode={status['mode']} | Slots={status['slot_ready']} brightness={status['slot_brightness']}\n"
+            f"Mode={status['mode']} detector={status['kit_detector']} | "
+            f"Slots={status['slot_ready']} brightness={status['slot_brightness']}\n"
             f"Utilities={status['utilities_ready']} brightness={status['utility_brightness']}"
         )
     )
