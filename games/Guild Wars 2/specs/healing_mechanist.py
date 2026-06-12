@@ -360,7 +360,6 @@ def healing_mechanist_rotation(stop_event):
     Meta reference: MetaBattle (July 27 2024, up-to-date for June 24 2025 patch).
     """
     loop_count = 0
-    mortar_elixir_shell_used = False  # Track whether Elixir Shell has been cast this Mortar visit
     med_important_skills_used = False  # Track whether Vital Blast/Infused Bomb have been cast this Med visit
     while not stop_event.is_set():
         loop_count += 1
@@ -479,19 +478,16 @@ def healing_mechanist_rotation(stop_event):
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
-                mortar_elixir_shell_used = True
 
-            # Switch to Mortar->Med when: both on cooldown now, OR Elixir Shell
-            # was already used this visit (so we've gotten value from Mortar)
-            neither_ready = not slot_1_ready and not slot_5_ready
-            if neither_ready or mortar_elixir_shell_used:
-                log_and_print('info', "Mortar Kit: switching to Med Kit")
+            # Switch to Med Kit when Elixir Shell is on cooldown (not ready)
+            # This lets Mortar Shot fire a few more times while we wait
+            if not slot_5_ready:
+                log_and_print('info', "Mortar Kit: Elixir Shell on cooldown, switching to Med Kit")
                 for _ in range(3):
                     if not button_mash(key_mapping['numpad6'], stop_check=lambda: check_stop_condition(stop_event)): break
                     time.sleep(0.1)
                 time.sleep(1.0)
                 if check_stop_condition(stop_event): break
-                mortar_elixir_shell_used = False  # Reset for next Mortar visit
                 # Verify the switch landed
                 med_verify = pixel_get_color(*DEFAULT_COORDS['indicator_med_kit'])
                 if med_verify != (255, 255, 255):
