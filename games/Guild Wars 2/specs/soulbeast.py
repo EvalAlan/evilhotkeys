@@ -161,7 +161,10 @@ UTILITY_NO_CONFIRM = {'utility_elite', 'utility_2', 'utility_1', 'utility_3'}
 
 SKILL_READY_PIXEL_MIN = 40
 SKILL_ON_COOLDOWN_MAX = 75
-WEAPON_SET_MIN_TIME = 5.5
+# MetaBattle hammer + axe/axe loops are much longer than a 5.5s swap cadence.
+# 5.5s caused the script to leave axe after only Path of Scars + Splitblade,
+# skipping most of the Axe/Axe loop. Keep each set long enough to drain weapon skills.
+WEAPON_SET_MIN_TIME = 10.0
 BEASTMODE_TARGET_COLOR = (112, 112, 122)  # observed Beastmode-active color
 BEASTMODE_TOLERANCE = 12
 
@@ -173,7 +176,7 @@ def check_stop_condition(stop_event):
     return not keyboard.is_pressed(key_mapping['numpad1']) or stop_event.is_set()
 
 
-def check_skill_available(coords, threshold=210):
+def check_skill_available(coords, threshold: int | None = 210):
     """Return True if the skill pixel is bright enough to imply readiness."""
     color = pixel_get_color(coords[0], coords[1])
     if color is None:
@@ -352,12 +355,23 @@ def power_soulbeast_rotation(stop_event):
             continue
 
         # Skill readiness
-        weapon_ready = {
-            'weapon_2': check_skill_available(DEFAULT_COORDS['weapon_2'], threshold=None),
-            'weapon_3': check_skill_available(DEFAULT_COORDS['weapon_3'], threshold=None),
-            'weapon_4': check_skill_available(DEFAULT_COORDS['weapon_4'], threshold=None),
-            'weapon_5': check_skill_available(DEFAULT_COORDS['weapon_5'], threshold=None),
-        }
+        # Axe 3/5 have much dimmer ready pixels on this UI/theme than hammer skills.
+        # Keep the global threshold conservative, but permit axe-specific dim reads so
+        # Winter's Bite and Whirling Defense actually enter the rotation.
+        if current_set == 'axe':
+            weapon_ready = {
+                'weapon_2': check_skill_available(DEFAULT_COORDS['weapon_2'], threshold=None),
+                'weapon_3': check_skill_available(DEFAULT_COORDS['weapon_3'], threshold=15),
+                'weapon_4': check_skill_available(DEFAULT_COORDS['weapon_4'], threshold=None),
+                'weapon_5': check_skill_available(DEFAULT_COORDS['weapon_5'], threshold=20),
+            }
+        else:
+            weapon_ready = {
+                'weapon_2': check_skill_available(DEFAULT_COORDS['weapon_2'], threshold=None),
+                'weapon_3': check_skill_available(DEFAULT_COORDS['weapon_3'], threshold=None),
+                'weapon_4': check_skill_available(DEFAULT_COORDS['weapon_4'], threshold=None),
+                'weapon_5': check_skill_available(DEFAULT_COORDS['weapon_5'], threshold=None),
+            }
         beast_ready = {
             'beast_skill_1': check_skill_available(DEFAULT_COORDS['beast_skill_1'], threshold=None),
             'beast_skill_2': check_skill_available(DEFAULT_COORDS['beast_skill_2'], threshold=None),
