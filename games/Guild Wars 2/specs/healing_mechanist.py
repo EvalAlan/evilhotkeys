@@ -396,10 +396,10 @@ def healing_mechanist_rotation(stop_event):
             med_color = pixel_get_color(*DEFAULT_COORDS['indicator_med_kit'])
             
             elixir_gun_active = elixir_color == (255, 255, 255)
-            # Mortar Kit is greenish/white when active - higher threshold to avoid false positives
-            mortar_brightness = sum(mortar_color) if mortar_color else 0
-            mortar_kit_active = mortar_brightness > 200  # Greenish (147,221,131) = 499 brightness
             med_kit_active = med_color == (255, 255, 255)
+            # Mortar pixel can linger bright during Med transition — suppress if Med is active
+            mortar_brightness = sum(mortar_color) if mortar_color else 0
+            mortar_kit_active = (mortar_brightness > 200) and not med_kit_active
         else:
             # We're on main weapon (shortbow)
             elixir_gun_active = False
