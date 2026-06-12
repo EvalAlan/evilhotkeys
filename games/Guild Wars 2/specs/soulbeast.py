@@ -159,7 +159,7 @@ UTILITY_FORCE_INTERVAL = {
 
 UTILITY_NO_CONFIRM = {'utility_elite', 'utility_2', 'utility_1', 'utility_3'}
 
-SKILL_READY_PIXEL_MIN = 40
+SKILL_READY_PIXEL_MIN = 20
 SKILL_ON_COOLDOWN_MAX = 75
 WEAPON_SET_MIN_TIME = 5.5
 BEASTMODE_TARGET_COLOR = (112, 112, 122)  # observed Beastmode-active color
