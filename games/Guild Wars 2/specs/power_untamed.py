@@ -156,19 +156,19 @@ WEAPON_SWAP_KEYS = build_keychain(
     'tab',
 )
 
-# Pet skill keys (F1-F3)
+# Pet skill keys (number row 1-3)
 PET_SKILL_KEYS = {
     'pet_skill_1': build_keychain(
-        resolve_key('games.GuildWars2.keybinds.untamed.pet_skill_1', key_mapping.get('f1', 'f1')),
-        key_mapping.get('f1', 'f1'),
+        resolve_key('games.GuildWars2.keybinds.untamed.pet_skill_1', '1'),
+        '1',
     ),
     'pet_skill_2': build_keychain(
-        resolve_key('games.GuildWars2.keybinds.untamed.pet_skill_2', key_mapping.get('f2', 'f2')),
-        key_mapping.get('f2', 'f2'),
+        resolve_key('games.GuildWars2.keybinds.untamed.pet_skill_2', '2'),
+        '2',
     ),
     'pet_skill_3': build_keychain(
-        resolve_key('games.GuildWars2.keybinds.untamed.pet_skill_3', key_mapping.get('f3', 'f3')),
-        key_mapping.get('f3', 'f3'),
+        resolve_key('games.GuildWars2.keybinds.untamed.pet_skill_3', '3'),
+        '3',
     ),
 }
 
@@ -406,9 +406,9 @@ def unleash_ranger():
 
 
 def send_pet_attack():
-    """Send pet F1 attack command."""
-    log_and_print('debug', "Sending pet attack (F1)")
-    tap_keys(['f1'])
+    """Send pet attack command (number row 1)."""
+    log_and_print('debug', "Sending pet attack (1)")
+    tap_keys(['1'])
     time.sleep(0.2)
 
 
@@ -525,7 +525,7 @@ def cast_utility_if_needed(util_name, current_time, last_use_times, utilities_re
 
 
 def cast_pet_skills_if_ready(stop_event):
-    """Cast any pet skills (F1-F3) that are ready."""
+    """Cast any pet skills (1-2-3) that are ready."""
     for name, keys in PET_SKILL_KEYS.items():
         coords = DEFAULT_COORDS.get(name)
         if not coords:
