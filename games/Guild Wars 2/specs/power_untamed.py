@@ -345,6 +345,52 @@ def is_pet_unleashed():
     return brightness > 100
 
 
+def ensure_pet_unleashed():
+    """
+    Ensure pet is in Unleashed state.
+    Checks pixel, sends Unleash Pet if needed, verifies state change.
+    Mirrors soulbeast ensure_beastmode() pattern.
+    """
+    if is_pet_unleashed():
+        log_and_print('debug', "Pet is already unleashed")
+        return True
+    log_and_print('info', "Pet not unleashed — sending Unleash Pet")
+    for attempt in range(3):
+        for key in UNLEASH_PET_KEYS:
+            button_mash(key, presses=2, delay=0.05)
+            time.sleep(0.45)
+            if is_pet_unleashed():
+                log_and_print('info', f"Pet unleashed successfully (pixel={pixel_get_color(*DEFAULT_COORDS.get('pet_unleashed', (2596, 970)))})")
+                time.sleep(0.15)
+                return True
+        time.sleep(0.2)
+    log_and_print('warning', f"Failed to unleash pet (pixel={pixel_get_color(*DEFAULT_COORDS.get('pet_unleashed', (2596, 970)))}) — check keybind")
+    return False
+
+
+def ensure_ranger_unleashed():
+    """
+    Ensure ranger is in normal state (pet NOT unleashed).
+    Checks pixel, sends Unleash Ranger if needed, verifies state change.
+    Mirrors soulbeast ensure_beastmode() pattern.
+    """
+    if not is_pet_unleashed():
+        log_and_print('debug', "Ranger is already in normal mode (pet not unleashed)")
+        return True
+    log_and_print('info', "Pet is unleashed — sending Unleash Ranger to return to ranger mode")
+    for attempt in range(3):
+        for key in UNLEASH_RANGER_KEYS:
+            button_mash(key, presses=2, delay=0.05)
+            time.sleep(0.45)
+            if not is_pet_unleashed():
+                log_and_print('info', f"Ranger mode restored (pixel={pixel_get_color(*DEFAULT_COORDS.get('pet_unleashed', (2596, 970)))})")
+                time.sleep(0.15)
+                return True
+        time.sleep(0.2)
+    log_and_print('warning', f"Failed to restore ranger mode (pixel={pixel_get_color(*DEFAULT_COORDS.get('pet_unleashed', (2596, 970)))}) — check keybind")
+    return False
+
+
 def unleash_pet():
     """Send Unleash Pet command."""
     log_and_print('info', "Unleashing pet")
@@ -369,20 +415,22 @@ def send_pet_attack():
 def unleash_pet_cycle(stop_event):
     """
     Full pet cycle per the metabattle guide:
-    1. Start with pet unleashed (unleash_pet)
+    1. Ensure pet is unleashed
     2. Send pet attack (F1)
-    3. Unleash Ranger
+    3. Cast any ready pet skills (F1-F3)
+    4. Ensure ranger mode (Unleash Ranger)
     """
     wait_if_paused()
     if check_stop_condition(stop_event):
         return False
-    unleash_pet()
-    if check_stop_condition(stop_event):
-        return False
-    send_pet_attack()
-    if check_stop_condition(stop_event):
-        return False
-    unleash_ranger()
+    if not ensure_pet_unleashed():
+        log_and_print('warning', "Initial pet unleash failed — continuing without pet skills")
+    else:
+        send_pet_attack()
+        cast_pet_skills_if_ready(stop_event)
+        if check_stop_condition(stop_event):
+            return False
+    ensure_ranger_unleashed()
     return True
 
 
@@ -552,6 +600,12 @@ def power_untamed_rotation(stop_event):
         current_time = time.time()
         current_set = detect_weapon_set()
 
+        # Ensure we're in ranger mode (pet not unleashed) before doing anything
+        if not ensure_ranger_unleashed():
+            log_and_print('warning', "Could not confirm ranger mode — continuing anyway")
+        if check_stop_condition(stop_event):
+            break
+
         # --- Log status ---
         weapon_ready = {}
         for slot in ['weapon_2', 'weapon_3', 'weapon_4', 'weapon_5']:
@@ -633,18 +687,18 @@ def power_untamed_rotation(stop_event):
                 if check_stop_condition(stop_event):
                     break
 
-                # Pet cycle: Unleash Pet, send attack, skills, Unleash Ranger
-                pet_unleash_done = False
-                if not is_pet_unleashed():
-                    unleash_pet()
+                # Pet cycle: ensure pet is unleashed, send attack, cast pet skills, back to ranger
+                if not ensure_pet_unleashed():
+                    log_and_print('warning', "Pet unleash failed — skipping pet skills this cycle")
+                else:
                     send_pet_attack()
+                    log_and_print('debug', "Casting pet skills (F1-F3) while unleashed")
                     cast_pet_skills_if_ready(stop_event)
                     if check_stop_condition(stop_event):
                         break
-                    unleash_ranger()
-                    pet_unleash_done = True
-                    if check_stop_condition(stop_event):
-                        break
+                ensure_ranger_unleashed()
+                if check_stop_condition(stop_event):
+                    break
 
                 continue
             else:
