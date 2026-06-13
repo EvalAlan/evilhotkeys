@@ -66,12 +66,17 @@ USE_SIGNET_IN_ROTATION = False   # Signet of the Ether (heal) - defaults OFF for
 USE_BLINK_IN_ROTATION = False    # Blink - mobility/stunbreak, not used in DPS loop by default
 
 # Approximate cooldown for Harmonious Harp (F5) usage in rotation (seconds)
-HARMONIOUS_HARP_COOLDOWN = 0.5  # Reduced from 20.0 - fire as soon as available
+HARMONIOUS_HARP_COOLDOWN = 4.0  # Don't let Harp constantly step on instrument/weapon flow
 
-# Minimum time between instrument casts (Lute/Flute/Drum/Crescendo/Harp/Queen)
-# This is a soft "GCD" to avoid stepping on ongoing animations.
-INSTRUMENT_GCD = 0.5  # Reduced from 1.2 - allow faster rotation
-HEAVY_INSTRUMENT_GCD = 0.5  # Reduced from 1.5 - allow faster rotation
+# Minimum time between instrument casts (Lute/Flute/Drum/Crescendo/Harp/Queen).
+# This is a soft "GCD" to avoid stepping on ongoing animations. Previous code had
+# these constants but still hardcoded 0.5 everywhere, because apparently we enjoy pain.
+INSTRUMENT_GCD = 0.75
+HEAVY_INSTRUMENT_GCD = 0.95
+WEAPON_SETTLE = 0.50
+LIGHT_CAST_SETTLE = 0.65
+HEAVY_CAST_SETTLE = 0.85
+COMBO_CAST_GAP = 0.45
 
 def log_and_print(level, msg):
     """Log and also print to ensure visibility"""
@@ -365,14 +370,14 @@ def power_troubadour_rotation(stop_event):
                 last_weapon_skill_use['spear_2'] = current_time
                 weapon_tracker.update_from_skill_use('spear_2')
                 weapon_skill_count += 1
-                time.sleep(0.35)
+                time.sleep(WEAPON_SETTLE)
                 return True
             if weapon_5_ready and weapon_internal_ready['spear_5']:
                 log_and_print('info', f">>> {reason}: Spear 5 / Phantasmal Lancer (NumPad5)")
                 button_mash(key_mapping['numpad5'], presses=2, delay=0.05)
                 last_weapon_skill_use['spear_5'] = current_time
                 weapon_skill_count += 1
-                time.sleep(0.35)
+                time.sleep(WEAPON_SETTLE)
                 return True
             if weapon_4_ready and weapon_internal_ready['spear_4']:
                 log_and_print('info', f">>> {reason}: Spear 4 (NumPad4)")
@@ -380,14 +385,14 @@ def power_troubadour_rotation(stop_event):
                 last_weapon_skill_use['spear_4'] = current_time
                 weapon_tracker.update_from_skill_use('spear_4')
                 weapon_skill_count += 1
-                time.sleep(0.35)
+                time.sleep(WEAPON_SETTLE)
                 return True
             if weapon_3_ready and weapon_internal_ready['spear_3']:
                 log_and_print('info', f">>> {reason}: Spear 3 filler (NumPad3)")
                 button_mash(key_mapping['numpad3'], presses=2, delay=0.05)
                 last_weapon_skill_use['spear_3'] = current_time
                 weapon_skill_count += 1
-                time.sleep(0.35)
+                time.sleep(WEAPON_SETTLE)
                 return True
             return False
 
@@ -397,7 +402,7 @@ def power_troubadour_rotation(stop_event):
             last_weapon_skill_use['dagger_5'] = current_time
             weapon_tracker.update_from_skill_use('dagger_5')
             weapon_skill_count += 1
-            time.sleep(0.35)
+            time.sleep(WEAPON_SETTLE)
             return True
         if weapon_2_ready and weapon_internal_ready['dagger_2']:
             log_and_print('info', f">>> {reason}: Dagger/Sword 2 (NumPad2)")
@@ -405,7 +410,7 @@ def power_troubadour_rotation(stop_event):
             last_weapon_skill_use['dagger_2'] = current_time
             weapon_tracker.update_from_skill_use('dagger_2')
             weapon_skill_count += 1
-            time.sleep(0.35)
+            time.sleep(WEAPON_SETTLE)
             return True
         if weapon_3_ready and weapon_internal_ready['dagger_3']:
             log_and_print('info', f">>> {reason}: Dagger/Sword 3 (NumPad3)")
@@ -413,7 +418,7 @@ def power_troubadour_rotation(stop_event):
             last_weapon_skill_use['dagger_3'] = current_time
             weapon_tracker.update_from_skill_use('dagger_3')
             weapon_skill_count += 1
-            time.sleep(0.35)
+            time.sleep(WEAPON_SETTLE)
             return True
         return False
     
@@ -560,33 +565,33 @@ def power_troubadour_rotation(stop_event):
         # Per MetaBattle: "Always cast Lively Lute off cooldown with three notes"
         # Only cast if we have 3 notes and haven't used it recently
         # Lively Lute generates 1 note when cast, so after consuming 3, we get 1 back
-        if lively_lute_ready and estimated_notes >= 3 and time_since_lively_lute > LUTE_INTERNAL_COOLDOWN and time_since_instrument > 0.5:
+        if lively_lute_ready and estimated_notes >= 3 and time_since_lively_lute > LUTE_INTERNAL_COOLDOWN and time_since_instrument > INSTRUMENT_GCD:
             log_and_print('info', ">>> PRIORITY 2: Lively Lute (key 1) - casting with 3 notes")
-            button_mash('1', presses=3, delay=0.05)
+            button_mash('1', presses=2, delay=0.05)
             last_lively_lute_use = current_time
             last_instrument_cast = current_time
             estimated_notes = 1  # Consumes 3 notes, generates 1 note back
-            time.sleep(0.6)  # Wait for cast to start
+            time.sleep(HEAVY_CAST_SETTLE)  # Wait for cast to start/animation settle
             wait_until_on_cooldown(DEFAULT_COORDS['instrument_1'], timeout_seconds=2.5)
-            time.sleep(0.3)  # Extra buffer after cooldown confirmed
+            time.sleep(INSTRUMENT_GCD)  # Extra buffer after cooldown confirmed
             if check_stop_condition(stop_event): break
             continue
         
         # Priority 3: Tale of the Soulkeeper (off cooldown, cast while Lute playing with 1-0 notes)
         # Per MetaBattle: "Cast Tale of the Soulkeeper off cooldown for boons. You should always cast it with the Lute playing, and 1 or 0 notes, as it generates 2 notes when cast while the Lute is playing."
         # We'll cast it when ready and we have 0-1 notes (or if Lute is ready to play)
-        if tale_soulkeeper_ready and estimated_notes <= 1 and time_since_tale_soulkeeper > 0.5:
+        if tale_soulkeeper_ready and estimated_notes <= 1 and time_since_tale_soulkeeper > 0.5 and time_since_instrument > INSTRUMENT_GCD:
             log_and_print('info', ">>> PRIORITY 3: Tale of the Soulkeeper (NumPad7) - casting for boons and note generation")
-            button_mash(key_mapping['numpad7'], presses=3, delay=0.05)
+            button_mash(key_mapping['numpad7'], presses=2, delay=0.05)
             last_tale_soulkeeper_use = current_time
             # Generates 2 notes when cast while Lute is playing
             if lively_lute_ready or time_since_lively_lute < 5.0:
                 estimated_notes = min(estimated_notes + 2, 3)
             else:
                 estimated_notes = min(estimated_notes + 1, 3)  # Still generates 1 note if Lute not playing
-            time.sleep(0.5)  # Wait for cast to start
+            time.sleep(LIGHT_CAST_SETTLE)  # Wait for cast to start/animation settle
             wait_until_on_cooldown(DEFAULT_COORDS['utility_1'], timeout_seconds=2.5)
-            time.sleep(0.3)  # Extra buffer after cooldown confirmed
+            time.sleep(INSTRUMENT_GCD)  # Extra buffer after cooldown confirmed
             if check_stop_condition(stop_event): break
             continue
         
@@ -597,26 +602,26 @@ def power_troubadour_rotation(stop_event):
         #    so we *always* follow Flustering Flute with NumPad8 rather than waiting for a bright pixel.
         #  - This ensures your Tale of the Tortured Mastermind actually fires in real combat.
         # Cast when we need notes (0-2 notes) to build to 3 for Lively Lute
-        if flustering_flute_ready and estimated_notes <= 2 and time_since_flustering_flute > FLUTE_INTERNAL_COOLDOWN and time_since_instrument > 0.5:
+        if flustering_flute_ready and estimated_notes <= 2 and time_since_flustering_flute > FLUTE_INTERNAL_COOLDOWN and time_since_instrument > INSTRUMENT_GCD:
             log_and_print('info', ">>> PRIORITY 4: Flustering Flute + Tale of the Tortured Mastermind (combo)")
             # Cast Flustering Flute first
             log_and_print('info', "  Casting Flustering Flute (key 2)")
-            button_mash('2', presses=3, delay=0.05)
+            button_mash('2', presses=2, delay=0.05)
             last_flustering_flute_use = current_time
             last_instrument_cast = current_time
-            time.sleep(0.5)  # Wait for Flute cast to start
+            time.sleep(LIGHT_CAST_SETTLE)  # Wait for Flute cast to start
             wait_until_on_cooldown(DEFAULT_COORDS['instrument_2'], timeout_seconds=2.5)
-            time.sleep(0.2)  # Brief pause before next cast
+            time.sleep(COMBO_CAST_GAP)  # Brief pause before next cast
             if check_stop_condition(stop_event): break
             
             # Then blindly cast Tale of the Tortured Mastermind on NumPad8
             log_and_print('info', "  Casting Tale of the Tortured Mastermind (NumPad8)")
-            button_mash(key_mapping['numpad8'], presses=3, delay=0.05)
+            button_mash(key_mapping['numpad8'], presses=2, delay=0.05)
             last_tale_mastermind_use = current_time
             estimated_notes = min(estimated_notes + 1, 3)  # Generates 1 note from the combo
-            time.sleep(0.5)  # Wait for Tale cast to start
+            time.sleep(LIGHT_CAST_SETTLE)  # Wait for Tale cast to start
             wait_until_on_cooldown(DEFAULT_COORDS['utility_2'], timeout_seconds=2.5)
-            time.sleep(0.3)  # Extra buffer after cooldown confirmed
+            time.sleep(INSTRUMENT_GCD)  # Extra buffer after cooldown confirmed
             if check_stop_condition(stop_event): break
             continue
         
@@ -636,16 +641,16 @@ def power_troubadour_rotation(stop_event):
             log_and_print('info', f"[DRUM DEBUG] pixel_ready={deafening_drum_ready}, not_black={drum_is_not_black}, should_fire={drum_should_fire}, notes={estimated_notes}, time_since={time_since_deafening_drum:.1f}s, time_since_instrument={time_since_instrument:.1f}s, crescendo_active={crescendo_active}")
         
         # Cooldown requirement to prevent too rapid casting
-        if drum_should_fire and estimated_notes >= 1 and time_since_deafening_drum > DRUM_INTERNAL_COOLDOWN and time_since_instrument > 0.5 and not crescendo_active:
+        if drum_should_fire and estimated_notes >= 1 and time_since_deafening_drum > DRUM_INTERNAL_COOLDOWN and time_since_instrument > INSTRUMENT_GCD and not crescendo_active:
             log_and_print('info', ">>> PRIORITY 5: Deafening Drum (key 3) - spending notes for damage/CC")
-            button_mash('3', presses=3, delay=0.05)
+            button_mash('3', presses=2, delay=0.05)
             last_deafening_drum_use = current_time
             last_instrument_cast = current_time
             estimated_notes = max(estimated_notes - 1, 0)  # Consumes 1 note
-            time.sleep(0.5)  # Wait for cast to start
+            time.sleep(HEAVY_CAST_SETTLE)  # Wait for cast to start/animation settle
             # Wait for the skill to go on cooldown (pixel goes dark) and ensure cast completes
             wait_until_on_cooldown(DEFAULT_COORDS['instrument_3'], timeout_seconds=2.5)
-            time.sleep(0.3)  # Extra buffer after cooldown confirmed
+            time.sleep(INSTRUMENT_GCD)  # Extra buffer after cooldown confirmed
             if check_stop_condition(stop_event): break
             continue
         
@@ -656,14 +661,14 @@ def power_troubadour_rotation(stop_event):
             or time_since_deafening_drum < 8.0
             or crescendo_active
         )
-        if harmonious_harp_ready and time_since_harp > HARP_INTERNAL_COOLDOWN and time_since_instrument > 0.5 and recent_instrument_playing:
+        if harmonious_harp_ready and time_since_harp > HARP_INTERNAL_COOLDOWN and time_since_instrument > INSTRUMENT_GCD and recent_instrument_playing:
             log_and_print('info', ">>> PRIORITY 6: Harmonious Harp (key 4) - amplifying instruments")
             button_mash('4', presses=2, delay=0.05)
             last_harp_use = current_time
             last_instrument_cast = current_time
-            time.sleep(0.5)  # Wait for cast to start
+            time.sleep(LIGHT_CAST_SETTLE)  # Wait for cast to start/animation settle
             wait_until_on_cooldown(DEFAULT_COORDS['instrument_4'], timeout_seconds=2.5)
-            time.sleep(0.3)  # Extra buffer after cooldown confirmed
+            time.sleep(INSTRUMENT_GCD)  # Extra buffer after cooldown confirmed
             if check_stop_condition(stop_event): break
             continue
         
@@ -671,14 +676,14 @@ def power_troubadour_rotation(stop_event):
         # Per MetaBattle / Snow Crows: "Tale of the August Queen activates all instruments, activating Symphonic Resonance and Fortissimo"
         # Use sparingly in a DPS loop (long cooldown) rather than on every recharge tick.
         # Use it reasonably often for DPS (approx every 40 seconds) while instruments are actually doing work.
-        if tale_queen_ready and time_since_tale_queen > 40.0 and time_since_instrument > 0.5 and (lively_lute_ready or flustering_flute_ready or crescendo_active):
+        if tale_queen_ready and time_since_tale_queen > 40.0 and time_since_instrument > INSTRUMENT_GCD and (lively_lute_ready or flustering_flute_ready or crescendo_active):
             log_and_print('info', ">>> PRIORITY 7: Tale of the August Queen (NumPad0) - elite skill")
-            button_mash(key_mapping['numpad0'], presses=3, delay=0.05)
+            button_mash(key_mapping['numpad0'], presses=2, delay=0.05)
             last_tale_queen_use = current_time
             last_instrument_cast = current_time
-            time.sleep(0.6)  # Wait for cast to start
+            time.sleep(HEAVY_CAST_SETTLE)  # Wait for cast to start/animation settle
             wait_until_on_cooldown(DEFAULT_COORDS['utility_elite'], timeout_seconds=2.5)
-            time.sleep(0.3)  # Extra buffer after cooldown confirmed
+            time.sleep(INSTRUMENT_GCD)  # Extra buffer after cooldown confirmed
             if check_stop_condition(stop_event): break
             continue
         
@@ -702,18 +707,18 @@ def power_troubadour_rotation(stop_event):
         
         # Don't cast Crescendo when at max notes (3) - spend notes first (Drum/Lute) to avoid wasting note generation
         # Cast off cooldown - only wait if it's currently active (5s duration)
-        if crescendo_ready and not crescendo_active and estimated_notes < 3 and time_since_crescendo > CRESCENDO_INTERNAL_COOLDOWN and time_since_instrument > 0.5 and has_multiple_instruments:
+        if crescendo_ready and not crescendo_active and estimated_notes < 3 and time_since_crescendo > CRESCENDO_INTERNAL_COOLDOWN and time_since_instrument > INSTRUMENT_GCD and has_multiple_instruments:
             log_and_print('info', f">>> PRIORITY 8: Crescendo (key 5) - casting for boons and note generation (current notes: {estimated_notes}/3)")
-            button_mash('5', presses=3, delay=0.05)
+            button_mash('5', presses=2, delay=0.05)
             last_crescendo_use = current_time
             last_instrument_cast = current_time
             crescendo_active = True
             crescendo_start_time = current_time
             crescendo_last_note_time = current_time
             crescendo_starting_notes = estimated_notes  # Track starting note count
-            time.sleep(0.6)  # Wait for cast to start
+            time.sleep(HEAVY_CAST_SETTLE)  # Wait for cast to start/animation settle
             wait_until_on_cooldown(DEFAULT_COORDS['instrument_5'], timeout_seconds=2.5)
-            time.sleep(0.3)  # Extra buffer after cooldown confirmed
+            time.sleep(INSTRUMENT_GCD)  # Extra buffer after cooldown confirmed
             if check_stop_condition(stop_event): break
             continue
         
@@ -722,7 +727,7 @@ def power_troubadour_rotation(stop_event):
         # Default: OFF for pure DPS golem benchmarks; toggle USE_SIGNET_IN_ROTATION if you want it.
         if USE_SIGNET_IN_ROTATION and signet_ether_ready and time_since_signet_ether > 20.0:
             log_and_print('info', ">>> PRIORITY 9: Signet of the Ether (NumPad6) - heal and resets Phantasm skills")
-            button_mash(key_mapping['numpad6'], presses=3, delay=0.05)
+            button_mash(key_mapping['numpad6'], presses=2, delay=0.05)
             last_signet_ether_use = current_time
             time.sleep(0.5)
             wait_until_on_cooldown(DEFAULT_COORDS['utility_heal'], timeout_seconds=1.5)
@@ -750,7 +755,7 @@ def power_troubadour_rotation(stop_event):
         # Default: OFF for pure DPS golem benchmarks; toggle USE_BLINK_IN_ROTATION if you want it.
         if USE_BLINK_IN_ROTATION and blink_ready and time_since_blink > 30.0:
             log_and_print('info', ">>> PRIORITY 9: Blink (NumPad9) - mobility/stunbreak")
-            button_mash(key_mapping['numpad9'], presses=3, delay=0.05)
+            button_mash(key_mapping['numpad9'], presses=2, delay=0.05)
             last_blink_use = current_time
             time.sleep(0.3)
             wait_until_on_cooldown(DEFAULT_COORDS['utility_3'], timeout_seconds=1.5)
