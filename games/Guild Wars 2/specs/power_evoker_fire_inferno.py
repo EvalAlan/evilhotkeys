@@ -119,7 +119,10 @@ UTILITY_KEY_OPTIONS = {
 }
 
 IGNITE_KEYS = build_keychain(IGNITE_KEY, '5')
-CONFLAGRATION_KEYS = build_keychain(CONFLAGRATION_KEY, '6')
+# Conflagration appears to be the charged/flipover state of the Evocation skill,
+# not a reliable standalone F6 slot. Prefer the Ignite keychain and keep F6/6 as
+# fallback only in case the UI/keybind setup exposes it separately.
+CONFLAGRATION_KEYS = build_keychain(IGNITE_KEY, '5', CONFLAGRATION_KEY, '6')
 
 
 def check_stop_condition(stop_event):
@@ -306,7 +309,11 @@ def power_evoker_rotation(stop_event):
                 log_and_print('debug', f'Forcing Ignite due to timeout (brightness={get_skill_brightness("ignite")})')
             else:
                 log_and_print('info', '>>> PRIORITY: Ignite (F5)')
-            ignite_success = cast_skill(IGNITE_KEYS, DEFAULT_COORDS['ignite'], presses=2, delay=0.05, wait_timeout=1.2)
+            # The Ignite icon does not reliably dim after the press in Alan's log:
+            # 10 attempts, 10 cooldown-confirmation failures, 0 accepted stacks.
+            # Treat the key press as authoritative and use our internal stack timer
+            # so the rotation can actually exercise the Evoker mechanic.
+            ignite_success = cast_skill(IGNITE_KEYS, None, presses=2, delay=0.05, wait_timeout=1.2)
             if ignite_success:
                 last_ignite = time.time()
                 weapon_casts_since_ignite = 0
@@ -321,8 +328,8 @@ def power_evoker_rotation(stop_event):
             log_and_print('debug', f'Ignite pixel still dim (brightness={get_skill_brightness("ignite")})')
 
         if ignite_stacks >= 3 and (conflagration_ready or time_since_conflag > CONFLAGRATION_FORCE_INTERVAL):
-            log_and_print('info', '>>> PRIORITY: Conflagration Detonate (F6)')
-            if cast_skill(CONFLAGRATION_KEYS, DEFAULT_COORDS['conflagration'], presses=2, delay=0.05, wait_timeout=1.2):
+            log_and_print('info', '>>> PRIORITY: Conflagration Detonate (Evocation keychain)')
+            if cast_skill(CONFLAGRATION_KEYS, None, presses=2, delay=0.05, wait_timeout=1.2):
                 last_conflagration = time.time()
                 ignite_stacks = 0
                 log_and_print('info', 'Conflagration accepted -> ignite_stacks reset to 0')
