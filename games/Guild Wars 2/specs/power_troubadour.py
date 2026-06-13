@@ -313,15 +313,17 @@ def power_troubadour_rotation(stop_event):
     # only the pixel causes repeated Spear 2 / Spear 5 / Dagger 5 spam. These are
     # deliberately conservative recast guards, not exact GW2 cooldown modelling.
     WEAPON_INTERNAL_COOLDOWNS = {
-        'spear_2': 2.5,
-        'spear_4': 2.5,
-        'spear_5': 2.5,
-        'dagger_2': 2.5,
-        'dagger_3': 2.5,
-        'dagger_5': 2.5,
+        'spear_2': 1.5,
+        'spear_4': 1.5,
+        'spear_5': 1.5,
+        'dagger_2': 1.5,
+        'dagger_3': 1.5,
+        'dagger_5': 1.5,
     }
-    WEAPON_SWAP_INTERVAL = 8.0     # Swap weapons every 8 seconds
-    WEAPON_SKILLS_PER_SWAP = 4    # Or after 4 weapon skills used
+    WEAPON_SWAP_INTERVAL = 8.0     # Prefer swapping weapons after this interval
+    WEAPON_SWAP_HARD_LIMIT = 12.0  # Force a swap even if instruments starved weapons
+    WEAPON_SKILLS_PER_SWAP = 4     # Or after 4 weapon skills used
+    MIN_WEAPON_SKILLS_BEFORE_TIMED_SWAP = 2
     
     # Initialize weapon set tracker
     weapon_tracker = WeaponSetTracker()
@@ -432,19 +434,22 @@ def power_troubadour_rotation(stop_event):
         weapon_set_name = "Dagger/Sword" if current_weapon_set == 'dagger_sword' else "Spear"
         log_and_print('info', f"Weapon Set: {weapon_set_name} | Skills: 2={weapon_2_ready} 3={weapon_3_ready} 4={weapon_4_ready} 5={weapon_5_ready} brightness={weapon_brightness} internal_ready={weapon_internal_ready}")
         log_and_print('info', f"Estimated Notes: {estimated_notes}/3 Crescendo Active: {crescendo_active}")
-        log_and_print('info', f"Time since: Lively Lute={time_since_lively_lute:.1f}s Deafening Drum={time_since_deafening_drum:.1f}s Tale Soulkeeper={time_since_tale_soulkeeper:.1f}s Crescendo={time_since_crescendo:.1f}s Harp={time_since_harp:.1f}s LastInstrument={time_since_instrument:.1f}s WeaponSwap={time_since_weapon_swap:.1f}s Signet Ether={time_since_signet_ether:.1f}s")
+        log_and_print('info', f"Time since: Lively Lute={time_since_lively_lute:.1f}s Deafening Drum={time_since_deafening_drum:.1f}s Tale Soulkeeper={time_since_tale_soulkeeper:.1f}s Crescendo={time_since_crescendo:.1f}s Harp={time_since_harp:.1f}s LastInstrument={time_since_instrument:.1f}s WeaponSwap={time_since_weapon_swap:.1f}s WeaponSkillCount={weapon_skill_count} Signet Ether={time_since_signet_ether:.1f}s")
         
         # Periodic weapon swap logic to rotate between Spear and Dagger/Sword.
         # This belongs before ALL cast priorities. Instruments/utilities also `continue`,
         # so putting this below them still lets the swap timer drift to 15-20s.
         should_swap = False
         swap_reason = ""
-        if time_since_weapon_swap >= WEAPON_SWAP_INTERVAL:
-            should_swap = True
-            swap_reason = f"{time_since_weapon_swap:.1f}s elapsed"
-        elif weapon_skill_count >= WEAPON_SKILLS_PER_SWAP:
+        if weapon_skill_count >= WEAPON_SKILLS_PER_SWAP:
             should_swap = True
             swap_reason = f"{weapon_skill_count} weapon skills used"
+        elif time_since_weapon_swap >= WEAPON_SWAP_HARD_LIMIT:
+            should_swap = True
+            swap_reason = f"{time_since_weapon_swap:.1f}s hard limit elapsed"
+        elif time_since_weapon_swap >= WEAPON_SWAP_INTERVAL and weapon_skill_count >= MIN_WEAPON_SKILLS_BEFORE_TIMED_SWAP:
+            should_swap = True
+            swap_reason = f"{time_since_weapon_swap:.1f}s elapsed after {weapon_skill_count} weapon skills"
 
         if should_swap and time_since_weapon_swap > 2.0:
             log_and_print('info', f">>> WEAPON SWAP: {swap_reason}, swapping to alternate set (Tab)")
@@ -522,7 +527,8 @@ def power_troubadour_rotation(stop_event):
         
         # Priority 5: Deafening Drum (spend extra notes for damage/CC)
         # Per MetaBattle / Snow Crows: "Spend extra notes on Deafening Drum for damage and crowd control"
-        # Cast whenever ready and we have 2+ notes - don't block it, let it fire to generate more notes
+        # Cast whenever ready and we have at least 1 note. Previous notes>=2 gate made
+        # Drum the wallflower: logs showed should_fire=True for long stretches at 1 note.
         # Fallback: If pixel check fails but it's been a while, try firing anyway
         drum_coords = DEFAULT_COORDS['instrument_3']
         drum_color_check = pixel_get_color(drum_coords[0], drum_coords[1])
@@ -530,11 +536,11 @@ def power_troubadour_rotation(stop_event):
         # Use pixel check OR (not black AND enough time has passed)
         drum_should_fire = deafening_drum_ready or (drum_is_not_black and time_since_deafening_drum > 8.0)
         
-        if ENABLE_DETAILED_LOGGING or (estimated_notes >= 2):
+        if ENABLE_DETAILED_LOGGING or (estimated_notes >= 1):
             log_and_print('info', f"[DRUM DEBUG] pixel_ready={deafening_drum_ready}, not_black={drum_is_not_black}, should_fire={drum_should_fire}, notes={estimated_notes}, time_since={time_since_deafening_drum:.1f}s, time_since_instrument={time_since_instrument:.1f}s, crescendo_active={crescendo_active}")
         
         # Cooldown requirement to prevent too rapid casting
-        if drum_should_fire and estimated_notes >= 2 and time_since_deafening_drum > 0.5 and time_since_instrument > 0.5 and not crescendo_active:
+        if drum_should_fire and estimated_notes >= 1 and time_since_deafening_drum > 0.5 and time_since_instrument > 0.5 and not crescendo_active:
             log_and_print('info', ">>> PRIORITY 5: Deafening Drum (key 3) - spending notes for damage/CC")
             button_mash('3', presses=3, delay=0.05)
             last_deafening_drum_use = current_time
