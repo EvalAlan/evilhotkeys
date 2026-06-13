@@ -620,7 +620,25 @@ def power_troubadour_rotation(stop_event):
             if check_stop_condition(stop_event): break
             continue
         
-        # Priority 5: Deafening Drum (spend extra notes for damage/CC)
+        # Priority 5: Crescendo (off cooldown, generates 1 note/sec for 5 seconds)
+        # Keep this above Drum. If Drum runs first, it spends the exact notes that
+        # make Crescendo legal, and Crescendo never fires despite a bright icon.
+        if crescendo_ready and not crescendo_active and estimated_notes < 3 and time_since_crescendo > CRESCENDO_INTERNAL_COOLDOWN and time_since_instrument > 0.5:
+            log_and_print('info', f">>> PRIORITY 5: Crescendo (key 5) - casting for boons and note generation (current notes: {estimated_notes}/3)")
+            button_mash('5', presses=3, delay=0.05)
+            last_crescendo_use = current_time
+            last_instrument_cast = current_time
+            crescendo_active = True
+            crescendo_start_time = current_time
+            crescendo_last_note_time = current_time
+            crescendo_starting_notes = estimated_notes  # Track starting note count
+            time.sleep(0.6)  # Wait for cast to start
+            wait_until_on_cooldown(DEFAULT_COORDS['instrument_5'], timeout_seconds=2.5)
+            time.sleep(0.3)  # Extra buffer after cooldown confirmed
+            if check_stop_condition(stop_event): break
+            continue
+
+        # Priority 6: Deafening Drum (spend extra notes for damage/CC)
         # Per MetaBattle / Snow Crows: "Spend extra notes on Deafening Drum for damage and crowd control"
         # Cast when ready, we have a note to spend, and the internal guard says the
         # previous cast had time to actually finish. Pixel readiness for Drum stays
@@ -637,7 +655,7 @@ def power_troubadour_rotation(stop_event):
         
         # Cooldown requirement to prevent too rapid casting
         if drum_should_fire and estimated_notes >= 1 and time_since_deafening_drum > DRUM_INTERNAL_COOLDOWN and time_since_instrument > 0.5 and not crescendo_active:
-            log_and_print('info', ">>> PRIORITY 5: Deafening Drum (key 3) - spending notes for damage/CC")
+            log_and_print('info', ">>> PRIORITY 6: Deafening Drum (key 3) - spending notes for damage/CC")
             button_mash('3', presses=3, delay=0.05)
             last_deafening_drum_use = current_time
             last_instrument_cast = current_time
@@ -649,7 +667,7 @@ def power_troubadour_rotation(stop_event):
             if check_stop_condition(stop_event): break
             continue
         
-        # Priority 6: Harmonious Harp (F5, key 4) - amplify active instruments
+        # Priority 7: Harmonious Harp (F5, key 4) - amplify active instruments
         recent_instrument_playing = (
             time_since_lively_lute < 8.0
             or time_since_flustering_flute < 8.0
@@ -657,7 +675,7 @@ def power_troubadour_rotation(stop_event):
             or crescendo_active
         )
         if harmonious_harp_ready and time_since_harp > HARP_INTERNAL_COOLDOWN and time_since_instrument > 0.5 and recent_instrument_playing:
-            log_and_print('info', ">>> PRIORITY 6: Harmonious Harp (key 4) - amplifying instruments")
+            log_and_print('info', ">>> PRIORITY 7: Harmonious Harp (key 4) - amplifying instruments")
             button_mash('4', presses=2, delay=0.05)
             last_harp_use = current_time
             last_instrument_cast = current_time
@@ -667,52 +685,17 @@ def power_troubadour_rotation(stop_event):
             if check_stop_condition(stop_event): break
             continue
         
-        # Priority 7: Tale of the August Queen (elite) - activates all instruments
+        # Priority 8: Tale of the August Queen (elite) - activates all instruments
         # Per MetaBattle / Snow Crows: "Tale of the August Queen activates all instruments, activating Symphonic Resonance and Fortissimo"
         # Use sparingly in a DPS loop (long cooldown) rather than on every recharge tick.
         # Use it reasonably often for DPS (approx every 40 seconds) while instruments are actually doing work.
         if tale_queen_ready and time_since_tale_queen > 40.0 and time_since_instrument > 0.5 and (lively_lute_ready or flustering_flute_ready or crescendo_active):
-            log_and_print('info', ">>> PRIORITY 7: Tale of the August Queen (NumPad0) - elite skill")
+            log_and_print('info', ">>> PRIORITY 8: Tale of the August Queen (NumPad0) - elite skill")
             button_mash(key_mapping['numpad0'], presses=3, delay=0.05)
             last_tale_queen_use = current_time
             last_instrument_cast = current_time
             time.sleep(0.6)  # Wait for cast to start
             wait_until_on_cooldown(DEFAULT_COORDS['utility_elite'], timeout_seconds=2.5)
-            time.sleep(0.3)  # Extra buffer after cooldown confirmed
-            if check_stop_condition(stop_event): break
-            continue
-        
-        # Priority 8: Crescendo (off cooldown, generates 1 note/sec for 5 seconds)
-        # Per Snow Crows: "Cast F1 and F5 whenever they Recharged" but "have them playing in the background for your next F5"
-        # Burst rotation shows: Drum → Lute → Flute → Crescendo
-        # We cast other instruments first, then Crescendo when instruments are active
-        # Count how many instruments are ready or recently cast (within 8 seconds)
-        active_instruments = 0
-        if time_since_lively_lute < 8.0:
-            active_instruments += 1
-        if time_since_flustering_flute < 8.0:
-            active_instruments += 1
-        if time_since_harp < 8.0:
-            active_instruments += 1
-        if time_since_deafening_drum < 8.0:
-            active_instruments += 1
-        
-        # Require at least 2 instruments to be ready/active before casting Crescendo
-        has_multiple_instruments = active_instruments >= 2
-        
-        # Don't cast Crescendo when at max notes (3) - spend notes first (Drum/Lute) to avoid wasting note generation
-        # Cast off cooldown - only wait if it's currently active (5s duration)
-        if crescendo_ready and not crescendo_active and estimated_notes < 3 and time_since_crescendo > CRESCENDO_INTERNAL_COOLDOWN and time_since_instrument > 0.5 and has_multiple_instruments:
-            log_and_print('info', f">>> PRIORITY 8: Crescendo (key 5) - casting for boons and note generation (current notes: {estimated_notes}/3)")
-            button_mash('5', presses=3, delay=0.05)
-            last_crescendo_use = current_time
-            last_instrument_cast = current_time
-            crescendo_active = True
-            crescendo_start_time = current_time
-            crescendo_last_note_time = current_time
-            crescendo_starting_notes = estimated_notes  # Track starting note count
-            time.sleep(0.6)  # Wait for cast to start
-            wait_until_on_cooldown(DEFAULT_COORDS['instrument_5'], timeout_seconds=2.5)
             time.sleep(0.3)  # Extra buffer after cooldown confirmed
             if check_stop_condition(stop_event): break
             continue
