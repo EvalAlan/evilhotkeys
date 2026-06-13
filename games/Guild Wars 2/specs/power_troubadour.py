@@ -303,6 +303,7 @@ def power_troubadour_rotation(stop_event):
     weapon_skill_count = 0         # Count weapon skills used since last swap
     last_weapon_skill_use = {
         'spear_2': 0.0,
+        'spear_3': 0.0,
         'spear_4': 0.0,
         'spear_5': 0.0,
         'dagger_2': 0.0,
@@ -314,6 +315,7 @@ def power_troubadour_rotation(stop_event):
     # deliberately conservative recast guards, not exact GW2 cooldown modelling.
     WEAPON_INTERNAL_COOLDOWNS = {
         'spear_2': 1.5,
+        'spear_3': 1.5,
         'spear_4': 1.5,
         'spear_5': 1.5,
         'dagger_2': 1.5,
@@ -324,6 +326,13 @@ def power_troubadour_rotation(stop_event):
     WEAPON_SWAP_HARD_LIMIT = 12.0  # Force a swap even if instruments starved weapons
     WEAPON_SKILLS_PER_SWAP = 4     # Or after 4 weapon skills used
     MIN_WEAPON_SKILLS_BEFORE_TIMED_SWAP = 2
+    POST_SWAP_WEAPON_OPENER_SECONDS = 6.0
+    POST_SWAP_WEAPON_OPENER_SKILLS = 2
+    FLUTE_INTERNAL_COOLDOWN = 8.0
+    DRUM_INTERNAL_COOLDOWN = 8.0
+    LUTE_INTERNAL_COOLDOWN = 8.0
+    CRESCENDO_INTERNAL_COOLDOWN = 12.0
+    HARP_INTERNAL_COOLDOWN = HARMONIOUS_HARP_COOLDOWN
     
     # Initialize weapon set tracker
     weapon_tracker = WeaponSetTracker()
@@ -341,6 +350,72 @@ def power_troubadour_rotation(stop_event):
     crescendo_last_note_time = 0.0
     crescendo_starting_notes = 0  # Track notes when Crescendo was cast
     estimated_notes = 0  # Track estimated note count (0-3)
+
+    def try_weapon_skill(current_weapon_set, weapon_2_ready, weapon_3_ready, weapon_4_ready, weapon_5_ready, weapon_internal_ready, current_time, reason):
+        """Cast one available weapon skill. Returns True if it cast something."""
+        nonlocal weapon_skill_count
+
+        if current_weapon_set == 'spear':
+            # MetaBattle: Mind the Gap first for Clarity, then Phantasmal Lancer.
+            # Spear 3 is normally defensive, but logs showed Spear sitting bright while
+            # the script auto-attacked or swapped with 0 spear skills. Use it as filler.
+            if weapon_2_ready and weapon_internal_ready['spear_2']:
+                log_and_print('info', f">>> {reason}: Spear 2 / Mind the Gap (NumPad2)")
+                button_mash(key_mapping['numpad2'], presses=2, delay=0.05)
+                last_weapon_skill_use['spear_2'] = current_time
+                weapon_tracker.update_from_skill_use('spear_2')
+                weapon_skill_count += 1
+                time.sleep(0.35)
+                return True
+            if weapon_5_ready and weapon_internal_ready['spear_5']:
+                log_and_print('info', f">>> {reason}: Spear 5 / Phantasmal Lancer (NumPad5)")
+                button_mash(key_mapping['numpad5'], presses=2, delay=0.05)
+                last_weapon_skill_use['spear_5'] = current_time
+                weapon_skill_count += 1
+                time.sleep(0.35)
+                return True
+            if weapon_4_ready and weapon_internal_ready['spear_4']:
+                log_and_print('info', f">>> {reason}: Spear 4 (NumPad4)")
+                button_mash(key_mapping['numpad4'], presses=2, delay=0.05)
+                last_weapon_skill_use['spear_4'] = current_time
+                weapon_tracker.update_from_skill_use('spear_4')
+                weapon_skill_count += 1
+                time.sleep(0.35)
+                return True
+            if weapon_3_ready and weapon_internal_ready['spear_3']:
+                log_and_print('info', f">>> {reason}: Spear 3 filler (NumPad3)")
+                button_mash(key_mapping['numpad3'], presses=2, delay=0.05)
+                last_weapon_skill_use['spear_3'] = current_time
+                weapon_skill_count += 1
+                time.sleep(0.35)
+                return True
+            return False
+
+        if weapon_5_ready and weapon_internal_ready['dagger_5']:
+            log_and_print('info', f">>> {reason}: Dagger/Sword 5 (NumPad5)")
+            button_mash(key_mapping['numpad5'], presses=2, delay=0.05)
+            last_weapon_skill_use['dagger_5'] = current_time
+            weapon_tracker.update_from_skill_use('dagger_5')
+            weapon_skill_count += 1
+            time.sleep(0.35)
+            return True
+        if weapon_2_ready and weapon_internal_ready['dagger_2']:
+            log_and_print('info', f">>> {reason}: Dagger/Sword 2 (NumPad2)")
+            button_mash(key_mapping['numpad2'], presses=2, delay=0.05)
+            last_weapon_skill_use['dagger_2'] = current_time
+            weapon_tracker.update_from_skill_use('dagger_2')
+            weapon_skill_count += 1
+            time.sleep(0.35)
+            return True
+        if weapon_3_ready and weapon_internal_ready['dagger_3']:
+            log_and_print('info', f">>> {reason}: Dagger/Sword 3 (NumPad3)")
+            button_mash(key_mapping['numpad3'], presses=2, delay=0.05)
+            last_weapon_skill_use['dagger_3'] = current_time
+            weapon_tracker.update_from_skill_use('dagger_3')
+            weapon_skill_count += 1
+            time.sleep(0.35)
+            return True
+        return False
     
     while not stop_event.is_set():
         rotation_count += 1
@@ -434,7 +509,7 @@ def power_troubadour_rotation(stop_event):
         weapon_set_name = "Dagger/Sword" if current_weapon_set == 'dagger_sword' else "Spear"
         log_and_print('info', f"Weapon Set: {weapon_set_name} | Skills: 2={weapon_2_ready} 3={weapon_3_ready} 4={weapon_4_ready} 5={weapon_5_ready} brightness={weapon_brightness} internal_ready={weapon_internal_ready}")
         log_and_print('info', f"Estimated Notes: {estimated_notes}/3 Crescendo Active: {crescendo_active}")
-        log_and_print('info', f"Time since: Lively Lute={time_since_lively_lute:.1f}s Deafening Drum={time_since_deafening_drum:.1f}s Tale Soulkeeper={time_since_tale_soulkeeper:.1f}s Crescendo={time_since_crescendo:.1f}s Harp={time_since_harp:.1f}s LastInstrument={time_since_instrument:.1f}s WeaponSwap={time_since_weapon_swap:.1f}s WeaponSkillCount={weapon_skill_count} Signet Ether={time_since_signet_ether:.1f}s")
+        log_and_print('info', f"Time since: Lively Lute={time_since_lively_lute:.1f}s Flute={time_since_flustering_flute:.1f}s Deafening Drum={time_since_deafening_drum:.1f}s Tale Soulkeeper={time_since_tale_soulkeeper:.1f}s Crescendo={time_since_crescendo:.1f}s Harp={time_since_harp:.1f}s LastInstrument={time_since_instrument:.1f}s WeaponSwap={time_since_weapon_swap:.1f}s WeaponSkillCount={weapon_skill_count} Signet Ether={time_since_signet_ether:.1f}s")
         
         # Periodic weapon swap logic to rotate between Spear and Dagger/Sword.
         # This belongs before ALL cast priorities. Instruments/utilities also `continue`,
@@ -461,11 +536,31 @@ def power_troubadour_rotation(stop_event):
             if check_stop_condition(stop_event): break
             continue
 
+        # Post-swap weapon opener: instruments were starving whole weapon sets, causing
+        # hard-limit swaps with WeaponSkillCount=0. Give each set a couple of weapon
+        # casts before songs/utilities can hijack the loop again.
+        if (
+            weapon_skill_count < POST_SWAP_WEAPON_OPENER_SKILLS
+            and time_since_weapon_swap < POST_SWAP_WEAPON_OPENER_SECONDS
+            and try_weapon_skill(
+                current_weapon_set,
+                weapon_2_ready,
+                weapon_3_ready,
+                weapon_4_ready,
+                weapon_5_ready,
+                weapon_internal_ready,
+                current_time,
+                "WEAPON OPENER",
+            )
+        ):
+            if check_stop_condition(stop_event): break
+            continue
+
         # Priority 1: Lively Lute (off cooldown with 3 notes)
         # Per MetaBattle: "Always cast Lively Lute off cooldown with three notes"
         # Only cast if we have 3 notes and haven't used it recently
         # Lively Lute generates 1 note when cast, so after consuming 3, we get 1 back
-        if lively_lute_ready and estimated_notes >= 3 and time_since_lively_lute > 0.5 and time_since_instrument > 0.5:
+        if lively_lute_ready and estimated_notes >= 3 and time_since_lively_lute > LUTE_INTERNAL_COOLDOWN and time_since_instrument > 0.5:
             log_and_print('info', ">>> PRIORITY 2: Lively Lute (key 1) - casting with 3 notes")
             button_mash('1', presses=3, delay=0.05)
             last_lively_lute_use = current_time
@@ -502,7 +597,7 @@ def power_troubadour_rotation(stop_event):
         #    so we *always* follow Flustering Flute with NumPad8 rather than waiting for a bright pixel.
         #  - This ensures your Tale of the Tortured Mastermind actually fires in real combat.
         # Cast when we need notes (0-2 notes) to build to 3 for Lively Lute
-        if flustering_flute_ready and estimated_notes <= 2 and time_since_flustering_flute > 0.5 and time_since_instrument > 0.5:
+        if flustering_flute_ready and estimated_notes <= 2 and time_since_flustering_flute > FLUTE_INTERNAL_COOLDOWN and time_since_instrument > 0.5:
             log_and_print('info', ">>> PRIORITY 4: Flustering Flute + Tale of the Tortured Mastermind (combo)")
             # Cast Flustering Flute first
             log_and_print('info', "  Casting Flustering Flute (key 2)")
@@ -527,8 +622,9 @@ def power_troubadour_rotation(stop_event):
         
         # Priority 5: Deafening Drum (spend extra notes for damage/CC)
         # Per MetaBattle / Snow Crows: "Spend extra notes on Deafening Drum for damage and crowd control"
-        # Cast whenever ready and we have at least 1 note. Previous notes>=2 gate made
-        # Drum the wallflower: logs showed should_fire=True for long stretches at 1 note.
+        # Cast when ready, we have a note to spend, and the internal guard says the
+        # previous cast had time to actually finish. Pixel readiness for Drum stays
+        # bright in logs, so without this it fires every ~3.6s and eats all notes.
         # Fallback: If pixel check fails but it's been a while, try firing anyway
         drum_coords = DEFAULT_COORDS['instrument_3']
         drum_color_check = pixel_get_color(drum_coords[0], drum_coords[1])
@@ -540,7 +636,7 @@ def power_troubadour_rotation(stop_event):
             log_and_print('info', f"[DRUM DEBUG] pixel_ready={deafening_drum_ready}, not_black={drum_is_not_black}, should_fire={drum_should_fire}, notes={estimated_notes}, time_since={time_since_deafening_drum:.1f}s, time_since_instrument={time_since_instrument:.1f}s, crescendo_active={crescendo_active}")
         
         # Cooldown requirement to prevent too rapid casting
-        if drum_should_fire and estimated_notes >= 1 and time_since_deafening_drum > 0.5 and time_since_instrument > 0.5 and not crescendo_active:
+        if drum_should_fire and estimated_notes >= 1 and time_since_deafening_drum > DRUM_INTERNAL_COOLDOWN and time_since_instrument > 0.5 and not crescendo_active:
             log_and_print('info', ">>> PRIORITY 5: Deafening Drum (key 3) - spending notes for damage/CC")
             button_mash('3', presses=3, delay=0.05)
             last_deafening_drum_use = current_time
@@ -560,7 +656,7 @@ def power_troubadour_rotation(stop_event):
             or time_since_deafening_drum < 8.0
             or crescendo_active
         )
-        if harmonious_harp_ready and time_since_harp > HARMONIOUS_HARP_COOLDOWN and time_since_instrument > 0.5 and recent_instrument_playing:
+        if harmonious_harp_ready and time_since_harp > HARP_INTERNAL_COOLDOWN and time_since_instrument > 0.5 and recent_instrument_playing:
             log_and_print('info', ">>> PRIORITY 6: Harmonious Harp (key 4) - amplifying instruments")
             button_mash('4', presses=2, delay=0.05)
             last_harp_use = current_time
@@ -606,7 +702,7 @@ def power_troubadour_rotation(stop_event):
         
         # Don't cast Crescendo when at max notes (3) - spend notes first (Drum/Lute) to avoid wasting note generation
         # Cast off cooldown - only wait if it's currently active (5s duration)
-        if crescendo_ready and not crescendo_active and estimated_notes < 3 and time_since_instrument > 0.5 and has_multiple_instruments:
+        if crescendo_ready and not crescendo_active and estimated_notes < 3 and time_since_crescendo > CRESCENDO_INTERNAL_COOLDOWN and time_since_instrument > 0.5 and has_multiple_instruments:
             log_and_print('info', f">>> PRIORITY 8: Crescendo (key 5) - casting for boons and note generation (current notes: {estimated_notes}/3)")
             button_mash('5', presses=3, delay=0.05)
             last_crescendo_use = current_time
@@ -634,71 +730,20 @@ def power_troubadour_rotation(stop_event):
             continue
         
         # Priority 10: Weapon-set skills (use damage skills off cooldown)
-        # Weapon skills should be used for damage between instrument/utility cooldowns
-        # Instruments are higher priority (1-8), so they'll fire first when available
-        # Weapon skills fill gaps when instruments are on cooldown
-        if current_weapon_set == 'spear':
-            # MetaBattle: Mind the Gap first for Clarity, then use empowered spear skills,
-            # especially Phantasmal Lancer. Imaginary Inversion is defensive/cleanse,
-            # so we don't spam Spear 3 here.
-            if weapon_2_ready and weapon_internal_ready['spear_2']:
-                log_and_print('info', ">>> PRIORITY 10: Spear 2 / Mind the Gap (NumPad2)")
-                button_mash(key_mapping['numpad2'], presses=2, delay=0.05)
-                last_weapon_skill_use['spear_2'] = current_time
-                weapon_tracker.update_from_skill_use('spear_2')
-                weapon_skill_count += 1
-                time.sleep(0.35)
-                if check_stop_condition(stop_event): break
-                continue
-
-            if weapon_5_ready and weapon_internal_ready['spear_5']:
-                log_and_print('info', ">>> PRIORITY 10: Spear 5 / Phantasmal Lancer (NumPad5)")
-                button_mash(key_mapping['numpad5'], presses=2, delay=0.05)
-                last_weapon_skill_use['spear_5'] = current_time
-                weapon_skill_count += 1
-                time.sleep(0.35)
-                if check_stop_condition(stop_event): break
-                continue
-
-            if weapon_4_ready and weapon_internal_ready['spear_4']:
-                log_and_print('info', ">>> PRIORITY 10: Spear 4 (NumPad4)")
-                button_mash(key_mapping['numpad4'], presses=2, delay=0.05)
-                last_weapon_skill_use['spear_4'] = current_time
-                weapon_tracker.update_from_skill_use('spear_4')
-                weapon_skill_count += 1
-                time.sleep(0.35)  # Minimal wait - let next loop check if it went on cooldown
-                if check_stop_condition(stop_event): break
-                continue
-        else:  # dagger_sword
-            if weapon_5_ready and weapon_internal_ready['dagger_5']:
-                log_and_print('info', ">>> PRIORITY 10: Dagger/Sword 5 (NumPad5)")
-                button_mash(key_mapping['numpad5'], presses=2, delay=0.05)
-                last_weapon_skill_use['dagger_5'] = current_time
-                weapon_tracker.update_from_skill_use('dagger_5')
-                weapon_skill_count += 1
-                time.sleep(0.35)  # Minimal wait - let next loop check if it went on cooldown
-                if check_stop_condition(stop_event): break
-                continue
-            
-            if weapon_2_ready and weapon_internal_ready['dagger_2']:
-                log_and_print('info', ">>> PRIORITY 10: Dagger/Sword 2 (NumPad2)")
-                button_mash(key_mapping['numpad2'], presses=2, delay=0.05)
-                last_weapon_skill_use['dagger_2'] = current_time
-                weapon_tracker.update_from_skill_use('dagger_2')
-                weapon_skill_count += 1
-                time.sleep(0.35)
-                if check_stop_condition(stop_event): break
-                continue
-            
-            if weapon_3_ready and weapon_internal_ready['dagger_3']:
-                log_and_print('info', ">>> PRIORITY 10: Dagger/Sword 3 (NumPad3)")
-                button_mash(key_mapping['numpad3'], presses=2, delay=0.05)
-                last_weapon_skill_use['dagger_3'] = current_time
-                weapon_tracker.update_from_skill_use('dagger_3')
-                weapon_skill_count += 1
-                time.sleep(0.35)
-                if check_stop_condition(stop_event): break
-                continue
+        # Normal filler path after instruments had a chance. The post-swap opener above
+        # uses the same helper before instruments to prevent weapon starvation.
+        if try_weapon_skill(
+            current_weapon_set,
+            weapon_2_ready,
+            weapon_3_ready,
+            weapon_4_ready,
+            weapon_5_ready,
+            weapon_internal_ready,
+            current_time,
+            "PRIORITY 10",
+        ):
+            if check_stop_condition(stop_event): break
+            continue
         
         # Priority 10: Blink (mobility/stunbreak) - only if really needed
         # Per MetaBattle: "Blink as a generic stun break and mobility skill"
