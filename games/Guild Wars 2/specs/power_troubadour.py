@@ -333,7 +333,16 @@ def power_troubadour_rotation(stop_event):
         # Drum needs lower threshold - try 200 instead of 300
         deafening_drum_ready = check_skill_available(DEFAULT_COORDS['instrument_3'], threshold=200)
         harmonious_harp_ready = check_skill_available(DEFAULT_COORDS['instrument_4'])
-        crescendo_ready = check_skill_available(DEFAULT_COORDS['instrument_5'])
+        # Crescendo's icon reads dimmer than the other instruments in the logs; default
+        # threshold=300 kept it False for the entire run, so it never even tried to cast.
+        crescendo_ready = check_skill_available(DEFAULT_COORDS['instrument_5'], threshold=40)
+        instrument_brightness = {
+            'lute_1': get_skill_brightness(DEFAULT_COORDS['instrument_1']),
+            'flute_2': get_skill_brightness(DEFAULT_COORDS['instrument_2']),
+            'drum_3': get_skill_brightness(DEFAULT_COORDS['instrument_3']),
+            'harp_4': get_skill_brightness(DEFAULT_COORDS['instrument_4']),
+            'crescendo_5': get_skill_brightness(DEFAULT_COORDS['instrument_5']),
+        }
         tale_soulkeeper_ready = check_skill_available(DEFAULT_COORDS['utility_1'])
         tale_mastermind_ready = check_skill_available(DEFAULT_COORDS['utility_2'])
         blink_ready = check_skill_available(DEFAULT_COORDS['utility_3'])
@@ -392,7 +401,7 @@ def power_troubadour_rotation(stop_event):
         
         # Log current state (standard debug output)
         log_and_print('info', f"--- LOOP {rotation_count} ---")
-        log_and_print('info', f"Instruments: Lively Lute(1)={lively_lute_ready} Flustering Flute(2)={flustering_flute_ready} Deafening Drum(3)={deafening_drum_ready} Harmonious Harp(4)={harmonious_harp_ready} Crescendo(5)={crescendo_ready}")
+        log_and_print('info', f"Instruments: Lively Lute(1)={lively_lute_ready} Flustering Flute(2)={flustering_flute_ready} Deafening Drum(3)={deafening_drum_ready} Harmonious Harp(4)={harmonious_harp_ready} Crescendo(5)={crescendo_ready} brightness={instrument_brightness}")
         log_and_print('info', f"Utilities: Tale Soulkeeper={tale_soulkeeper_ready} Tale Mastermind={tale_mastermind_ready} Blink={blink_ready} Signet Ether={signet_ether_ready} Tale Queen={tale_queen_ready}")
         weapon_set_name = "Dagger/Sword" if current_weapon_set == 'dagger_sword' else "Spear"
         log_and_print('info', f"Weapon Set: {weapon_set_name} | Skills: 2={weapon_2_ready} 3={weapon_3_ready} 4={weapon_4_ready} 5={weapon_5_ready} brightness={weapon_brightness}")
@@ -491,7 +500,13 @@ def power_troubadour_rotation(stop_event):
             continue
         
         # Priority 6: Harmonious Harp (F5, key 4) - amplify active instruments
-        if harmonious_harp_ready and time_since_harp > HARMONIOUS_HARP_COOLDOWN and time_since_instrument > 0.5 and (lively_lute_ready or flustering_flute_ready or crescendo_active):
+        recent_instrument_playing = (
+            time_since_lively_lute < 8.0
+            or time_since_flustering_flute < 8.0
+            or time_since_deafening_drum < 8.0
+            or crescendo_active
+        )
+        if harmonious_harp_ready and time_since_harp > HARMONIOUS_HARP_COOLDOWN and time_since_instrument > 0.5 and recent_instrument_playing:
             log_and_print('info', ">>> PRIORITY 6: Harmonious Harp (key 4) - amplifying instruments")
             button_mash('4', presses=2, delay=0.05)
             last_harp_use = current_time
@@ -523,13 +538,13 @@ def power_troubadour_rotation(stop_event):
         # We cast other instruments first, then Crescendo when instruments are active
         # Count how many instruments are ready or recently cast (within 8 seconds)
         active_instruments = 0
-        if lively_lute_ready or time_since_lively_lute < 8.0:
+        if time_since_lively_lute < 8.0:
             active_instruments += 1
-        if flustering_flute_ready or time_since_flustering_flute < 8.0:
+        if time_since_flustering_flute < 8.0:
             active_instruments += 1
-        if harmonious_harp_ready or time_since_harp < 8.0:
+        if time_since_harp < 8.0:
             active_instruments += 1
-        if deafening_drum_ready or time_since_deafening_drum < 8.0:
+        if time_since_deafening_drum < 8.0:
             active_instruments += 1
         
         # Require at least 2 instruments to be ready/active before casting Crescendo
@@ -564,6 +579,29 @@ def power_troubadour_rotation(stop_event):
             if check_stop_condition(stop_event): break
             continue
         
+        # Periodic weapon swap logic to rotate between Spear and Dagger/Sword.
+        # This MUST run before weapon skills. Weapon skill casts continue back to the
+        # top of the loop, so putting this after them lets the script spam 13+ weapon
+        # skills before it ever checks the swap gate. Very elegant foot-gun.
+        should_swap = False
+        swap_reason = ""
+        if time_since_weapon_swap >= WEAPON_SWAP_INTERVAL:
+            should_swap = True
+            swap_reason = f"{time_since_weapon_swap:.1f}s elapsed"
+        elif weapon_skill_count >= WEAPON_SKILLS_PER_SWAP:
+            should_swap = True
+            swap_reason = f"{weapon_skill_count} weapon skills used"
+
+        if should_swap and time_since_weapon_swap > 2.0:
+            log_and_print('info', f">>> WEAPON SWAP: {swap_reason}, swapping to alternate set (Tab)")
+            press_and_release('tab', delay=0.05)
+            last_weapon_swap = current_time
+            weapon_skill_count = 0
+            weapon_tracker.swap()
+            time.sleep(0.5)
+            if check_stop_condition(stop_event): break
+            continue
+
         # Priority 10: Weapon-set skills (use damage skills off cooldown)
         # Weapon skills should be used for damage between instrument/utility cooldowns
         # Instruments are higher priority (1-8), so they'll fire first when available
@@ -577,7 +615,7 @@ def power_troubadour_rotation(stop_event):
                 button_mash(key_mapping['numpad2'], presses=2, delay=0.05)
                 weapon_tracker.update_from_skill_use('spear_2')
                 weapon_skill_count += 1
-                time.sleep(0.15)
+                time.sleep(0.35)
                 if check_stop_condition(stop_event): break
                 continue
 
@@ -585,7 +623,7 @@ def power_troubadour_rotation(stop_event):
                 log_and_print('info', ">>> PRIORITY 10: Spear 5 / Phantasmal Lancer (NumPad5)")
                 button_mash(key_mapping['numpad5'], presses=2, delay=0.05)
                 weapon_skill_count += 1
-                time.sleep(0.15)
+                time.sleep(0.35)
                 if check_stop_condition(stop_event): break
                 continue
 
@@ -594,7 +632,7 @@ def power_troubadour_rotation(stop_event):
                 button_mash(key_mapping['numpad4'], presses=2, delay=0.05)
                 weapon_tracker.update_from_skill_use('spear_4')
                 weapon_skill_count += 1
-                time.sleep(0.15)  # Minimal wait - let next loop check if it went on cooldown
+                time.sleep(0.35)  # Minimal wait - let next loop check if it went on cooldown
                 if check_stop_condition(stop_event): break
                 continue
         else:  # dagger_sword
@@ -603,7 +641,7 @@ def power_troubadour_rotation(stop_event):
                 button_mash(key_mapping['numpad5'], presses=2, delay=0.05)
                 weapon_tracker.update_from_skill_use('dagger_5')
                 weapon_skill_count += 1
-                time.sleep(0.15)  # Minimal wait - let next loop check if it went on cooldown
+                time.sleep(0.35)  # Minimal wait - let next loop check if it went on cooldown
                 if check_stop_condition(stop_event): break
                 continue
             
@@ -612,7 +650,7 @@ def power_troubadour_rotation(stop_event):
                 button_mash(key_mapping['numpad2'], presses=2, delay=0.05)
                 weapon_tracker.update_from_skill_use('dagger_2')
                 weapon_skill_count += 1
-                time.sleep(0.15)
+                time.sleep(0.35)
                 if check_stop_condition(stop_event): break
                 continue
             
@@ -621,31 +659,9 @@ def power_troubadour_rotation(stop_event):
                 button_mash(key_mapping['numpad3'], presses=2, delay=0.05)
                 weapon_tracker.update_from_skill_use('dagger_3')
                 weapon_skill_count += 1
-                time.sleep(0.15)
+                time.sleep(0.35)
                 if check_stop_condition(stop_event): break
                 continue
-        
-        # Periodic weapon swap logic to rotate between Spear and Dagger/Sword.
-        # Swap every N seconds OR after N weapon skills used, whichever comes first.
-        # This ensures we use both weapon sets regularly for optimal DPS.
-        should_swap = False
-        swap_reason = ""
-        if time_since_weapon_swap >= WEAPON_SWAP_INTERVAL:
-            should_swap = True
-            swap_reason = f"{time_since_weapon_swap:.1f}s elapsed"
-        elif weapon_skill_count >= WEAPON_SKILLS_PER_SWAP:
-            should_swap = True
-            swap_reason = f"{weapon_skill_count} weapon skills used"
-        
-        if should_swap and time_since_weapon_swap > 2.0:  # Minimum 2s between swaps to prevent spam
-            log_and_print('info', f">>> WEAPON SWAP: {swap_reason}, swapping to alternate set (Tab)")
-            press_and_release('tab', delay=0.05)
-            last_weapon_swap = current_time
-            weapon_skill_count = 0  # Reset counter after swap
-            weapon_tracker.swap()  # Update tracker with explicit swap
-            time.sleep(0.5)  # Increased delay to let weapon swap complete and detection stabilize
-            if check_stop_condition(stop_event): break
-            continue
         
         # Priority 10: Blink (mobility/stunbreak) - only if really needed
         # Per MetaBattle: "Blink as a generic stun break and mobility skill"
