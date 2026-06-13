@@ -29,8 +29,10 @@ from libs.pause import wait_if_paused
 logger = get_logger('power_evoker_fire_inferno')
 logger.propagate = True
 
-# Enable/disable detailed logging
-ENABLE_DETAILED_LOGGING = False
+# Enable/disable detailed logging. Keep this on while validating the spec; the
+# rotation is driven by pixel reads and internal Ignite counters, so quiet logs
+# are basically decorative garbage.
+ENABLE_DETAILED_LOGGING = True
 
 
 def log_and_print(level, msg):
@@ -157,6 +159,10 @@ def get_skill_brightness(name):
     return sum(color) if color else 0
 
 
+def get_brightness_snapshot(names):
+    return {name: get_skill_brightness(name) for name in names}
+
+
 def cast_skill(key_candidates, coords, presses=3, delay=0.05, wait_timeout=1.5):
     """Attempt to cast a skill using a list of possible keybinds."""
     for key in key_candidates:
@@ -229,16 +235,18 @@ def power_evoker_rotation(stop_event):
             'info',
             (
                 f"--- LOOP {rotation_count} ---\n"
-                f"WeaponReady -> DT={weapon2_ready}({get_skill_brightness('weapon_2')}) "
-                f"PH={weapon3_ready}({get_skill_brightness('weapon_3')}) "
-                f"FW={weapon4_ready}({get_skill_brightness('weapon_4')}) "
-                f"FS={weapon5_ready}({get_skill_brightness('weapon_5')})\n"
-                f"IgniteReady={ignite_ready}({get_skill_brightness('ignite')}) stacks={ignite_stacks} "
-                f"ConflagReady={conflagration_ready}({get_skill_brightness('conflagration')})\n"
-                f"Utilities -> Fox={fox_fury_ready}({get_skill_brightness('utility_1')}) "
-                f"Signet={signet_fire_ready}({get_skill_brightness('utility_2')}) "
-                f"Armor={armor_earth_ready}({get_skill_brightness('utility_3')}) "
-                f"Glyph={glyph_elementals_ready}({get_skill_brightness('utility_elite')})"
+                f"WeaponReady -> DT={weapon2_ready} PH={weapon3_ready} FW={weapon4_ready} FS={weapon5_ready} "
+                f"brightness={get_brightness_snapshot(['weapon_2', 'weapon_3', 'weapon_4', 'weapon_5'])}\n"
+                f"Evocation -> IgniteReady={ignite_ready} ConflagReady={conflagration_ready} "
+                f"brightness={get_brightness_snapshot(['ignite', 'conflagration'])} "
+                f"ignite_stacks={ignite_stacks} weapon_casts_since_ignite={weapon_casts_since_ignite}\n"
+                f"Utilities -> Fox={fox_fury_ready} Signet={signet_fire_ready} Armor={armor_earth_ready} Glyph={glyph_elementals_ready} "
+                f"brightness={get_brightness_snapshot(['utility_1', 'utility_2', 'utility_3', 'utility_elite'])}\n"
+                f"Timers -> Ignite={time_since_ignite:.1f}s Conflag={time_since_conflag:.1f}s "
+                f"DT={time_since_dragon:.1f}s Phoenix={time_since_phoenix:.1f}s "
+                f"Flamewall={time_since_flamewall:.1f}s FireShield={time_since_fire_shield:.1f}s "
+                f"Fox={time_since_fox_fury:.1f}s Signet={time_since_signet:.1f}s "
+                f"Armor={time_since_armor:.1f}s Glyph={time_since_glyph:.1f}s"
             )
         )
 
@@ -303,6 +311,7 @@ def power_evoker_rotation(stop_event):
                 last_ignite = time.time()
                 weapon_casts_since_ignite = 0
                 ignite_stacks = min(ignite_stacks + 1, 3)
+                log_and_print('info', f'Ignite accepted -> stacks={ignite_stacks}, weapon_casts_since_ignite={weapon_casts_since_ignite}')
                 continue
             else:
                 log_and_print('debug', 'Ignite attempt did not register (icon brightness unchanged)')
@@ -316,6 +325,7 @@ def power_evoker_rotation(stop_event):
             if cast_skill(CONFLAGRATION_KEYS, DEFAULT_COORDS['conflagration'], presses=2, delay=0.05, wait_timeout=1.2):
                 last_conflagration = time.time()
                 ignite_stacks = 0
+                log_and_print('info', 'Conflagration accepted -> ignite_stacks reset to 0')
                 continue
 
         # Weapon priorities
@@ -324,6 +334,7 @@ def power_evoker_rotation(stop_event):
             if cast_skill(WEAPON_KEY_OPTIONS['weapon_4'], DEFAULT_COORDS['weapon_4'], presses=3, delay=0.05):
                 last_flamewall = time.time()
                 weapon_casts_since_ignite += 1
+                log_and_print('info', f'Flamewall accepted -> weapon_casts_since_ignite={weapon_casts_since_ignite}')
                 time.sleep(WEAPON_CAST_GAP)
                 continue
             log_and_print('debug', "Flamewall cast attempt failed (pixel stayed bright)")
@@ -333,6 +344,7 @@ def power_evoker_rotation(stop_event):
             if cast_skill(WEAPON_KEY_OPTIONS['weapon_2'], DEFAULT_COORDS['weapon_2'], presses=3, delay=0.05):
                 last_dragon_tooth = time.time()
                 weapon_casts_since_ignite += 1
+                log_and_print('info', f"Dragon's Tooth accepted -> weapon_casts_since_ignite={weapon_casts_since_ignite}")
                 time.sleep(WEAPON_CAST_GAP)
                 continue
             log_and_print('debug', "Dragon's Tooth cast attempt failed (pixel stayed bright)")
@@ -342,6 +354,7 @@ def power_evoker_rotation(stop_event):
             if cast_skill(WEAPON_KEY_OPTIONS['weapon_3'], DEFAULT_COORDS['weapon_3'], presses=3, delay=0.05):
                 last_phoenix = time.time()
                 weapon_casts_since_ignite += 1
+                log_and_print('info', f'Phoenix accepted -> weapon_casts_since_ignite={weapon_casts_since_ignite}')
                 time.sleep(WEAPON_CAST_GAP)
                 continue
             log_and_print('debug', "Phoenix cast attempt failed (pixel stayed bright)")
@@ -351,6 +364,7 @@ def power_evoker_rotation(stop_event):
             if cast_skill(WEAPON_KEY_OPTIONS['weapon_5'], DEFAULT_COORDS['weapon_5'], presses=3, delay=0.05):
                 last_fire_shield = time.time()
                 weapon_casts_since_ignite += 1
+                log_and_print('info', f'Fire Shield accepted -> weapon_casts_since_ignite={weapon_casts_since_ignite}')
                 time.sleep(WEAPON_CAST_GAP)
                 continue
             log_and_print('debug', "Fire Shield cast attempt failed (pixel stayed bright)")
