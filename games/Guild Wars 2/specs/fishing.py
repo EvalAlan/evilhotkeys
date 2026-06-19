@@ -396,13 +396,13 @@ def fishing_rotation(stop_event):
 def run(stop_event):
     """Entry point — press trigger once to start fishing until stopped.
 
-    Trigger: NumPad2 starts the fishing loop.
+    Trigger: F9 starts the fishing loop. Do not use NumPad2: GW2 treats it as a weapon/keybind input.
     Cast/interact: NumPad1 is used by the bot for cast/recast/hook.
     Stop: stop_event set by the macro runner.
     """
-    TRIGGER_KEY = key_mapping.get('numpad2', 'numpad2')
+    TRIGGER_KEY = 'f9'
 
-    log_and_print('info', "Fishing bot ready — press NumPad2 once to start, stop macro to end")
+    log_and_print('info', "Fishing bot ready — press F9 once to start, stop macro to end")
 
     while not stop_event.is_set():
         wait_if_paused()
