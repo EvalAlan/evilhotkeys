@@ -219,21 +219,24 @@ def fishing_rotation(stop_event):
         if stop_event.is_set():
             break
         
-        # Check for catch indicator (single point, tolerance)
-        if detect_catch_indicator():
-            bite_detected = True
-            log_and_print('info', f"BITE DETECTED at ({CATCH_INDICATOR_COORDS})! Color: {pixel_get_color(*CATCH_INDICATOR_COORDS)}")
-            break
-        
-        # Also try region search as fallback
+        # Check for catch indicator via region search (bite flash moves within region)
         catch_pos = pixel_search_in_region(
-            CATCH_TARGET_COLOR, 
+            CATCH_TARGET_COLOR,
             CATCH_REGION[0], CATCH_REGION[1], CATCH_REGION[2], CATCH_REGION[3],
             tolerance=CATCH_TOLERANCE
         )
         if catch_pos:
             bite_detected = True
-            log_and_print('info', f"BITE DETECTED via region search at {catch_pos}! Color: {pixel_get_color(*catch_pos)}")
+            # Read the actual color from the screenshot for debug
+            from PIL import ImageGrab
+            img = ImageGrab.grab(bbox=(CATCH_REGION[0], CATCH_REGION[1], CATCH_REGION[2], CATCH_REGION[3]))
+            if img:
+                dx = catch_pos[0] - CATCH_REGION[0]
+                dy = catch_pos[1] - CATCH_REGION[1]
+                actual_color = img.getpixel((dx, dy))[:3]
+                log_and_print('info', f"BITE DETECTED at {catch_pos}! actual_color={actual_color}")
+            else:
+                log_and_print('info', f"BITE DETECTED at {catch_pos}!")
             break
         
         elapsed = time.time() - wait_start
