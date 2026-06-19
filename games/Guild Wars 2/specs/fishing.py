@@ -372,12 +372,12 @@ def fishing_rotation(stop_event):
                 )
 
             # Predictive continuous-hold controller. Positive error means the
-            # green zone needs to move right; negative means left. Velocity lead
-            # prevents holding through the target and overshooting.
+            # fish is right of the green zone; in GW2 fishing, A moves the green
+            # zone right and D moves it left. Velocity lead prevents overshoot.
             if control_error > REEL_CENTER_DEADBAND:
-                set_reel_direction('d')
-            elif control_error < -REEL_CENTER_DEADBAND:
                 set_reel_direction('a')
+            elif control_error < -REEL_CENTER_DEADBAND:
+                set_reel_direction('d')
             else:
                 set_reel_direction(None)
                 log_and_print('debug',
