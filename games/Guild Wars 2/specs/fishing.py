@@ -58,10 +58,10 @@ REEL_REGION = (2745, 802, 3020, 825)      # reel bar region — REEL actions
 CATCH_TARGET_COLOR = (188, 69, 112)      # bright pink/red bite flash (tuned from detected bite)
 CATCH_TOLERANCE = 50                       # generous — different biomes vary
 
-REEL_GREEN_TARGET = (164, 250, 123)       # green reel zone
-REEL_GREEN_TOLERANCE = 35
+REEL_GREEN_TARGET = (129, 220, 101)       # green reel zone (empirical)
+REEL_GREEN_TOLERANCE = 40
 
-REEL_ORANGE_TARGET = (242, 212, 90)       # orange fish block
+REEL_ORANGE_TARGET = (83, 40, 5)          # orange fish block (empirical — dark brown/orange)
 REEL_ORANGE_TOLERANCE = 40
 
 # Bobber detection — the bobber is a bright white/blue dot on water
@@ -146,15 +146,6 @@ def get_reel_positions():
             green_x = x
         if colors_close(color, REEL_ORANGE_TARGET, REEL_ORANGE_TOLERANCE):
             orange_x = x
-
-    # DEBUG: log raw pixel samples when green not found
-    if green_x is None and ENABLE_DETAILED_LOGGING:
-        dump_samples = []
-        for dump_x in range(x1, x2, 10):
-            c = pixel_get_color(dump_x, mid_y)
-            if c:
-                dump_samples.append(f"x={dump_x}:{c}")
-        log_and_print('debug', f"REEL RAW y={mid_y}: {', '.join(dump_samples[:8])}")
 
     return green_x, orange_x
 
