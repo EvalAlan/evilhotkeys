@@ -71,9 +71,6 @@ BOBBER_TOLERANCE = 50
 # ──────────────────────────────────────────────────────────────────────
 # Timing constants
 # ──────────────────────────────────────────────────────────────────────
-_reel_debug_dumped = False  # one-shot raw pixel dump flag
-
-
 CAST_DELAY = 2.5          # wait after pressing "Begin Fishing" for the cast animation
 BITE_CHECK_INTERVAL = 0.1 # how often to check for a bite
 REEL_CHECK_INTERVAL = 0.05
@@ -150,16 +147,14 @@ def get_reel_positions():
         if colors_close(color, REEL_ORANGE_TARGET, REEL_ORANGE_TOLERANCE):
             orange_x = x
 
-    # DEBUG: one-shot raw pixel dump when green not found
-    global _reel_debug_dumped
-    if green_x is None and ENABLE_DETAILED_LOGGING and not _reel_debug_dumped:
-        _reel_debug_dumped = True
+    # DEBUG: log raw pixel samples when green not found
+    if green_x is None and ENABLE_DETAILED_LOGGING:
         dump_samples = []
         for dump_x in range(x1, x2, 10):
             c = pixel_get_color(dump_x, mid_y)
             if c:
                 dump_samples.append(f"x={dump_x}:{c}")
-        log_and_print('debug', f"REEL RAW (y={mid_y}): {', '.join(dump_samples)}")
+        log_and_print('debug', f"REEL RAW y={mid_y}: {', '.join(dump_samples[:8])}")
 
     return green_x, orange_x
 
