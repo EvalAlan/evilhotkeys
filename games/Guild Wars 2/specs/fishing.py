@@ -293,30 +293,27 @@ def fishing_rotation(stop_event):
     # Step 5: Reel mini-game — chase the orange block into the green zone
     log_and_print('info', "Starting reel mini-game...")
     reel_start = time.time()
+    held_direction = None
     missing_reel_frames = 0
     missing_green_frames = 0
     previous_green_x = None
 
-    REEL_CENTER_DEADBAND = 12       # close enough; avoid twitching
-    REEL_BRAKE_ZONE = 55            # counter-steer before crossing center
-    REEL_PULSE_SHORT = 0.025        # seconds
-    REEL_PULSE_MEDIUM = 0.045
-    REEL_PULSE_LONG = 0.070
+    REEL_CENTER_DEADBAND = 14       # close enough; avoid twitching
+    REEL_LEAD_FACTOR = 5            # velocity lead compensation, px/frame -> px error
 
-    def release_reel_keys():
-        """Release both steering keys; safe even if neither is held."""
-        release('a')
-        release('d')
-
-    def pulse_reel_direction(direction, duration):
-        """Apply a short A/D hold pulse instead of indefinite steering."""
-        release_reel_keys()
-        if direction is None or duration <= 0:
+    def set_reel_direction(direction):
+        """Hold A/D continuously until the controller changes direction."""
+        nonlocal held_direction
+        if direction == held_direction:
             return
-        press(direction)
-        log_and_print('debug', f"Pulse reel direction: {direction.upper()} for {duration:.3f}s")
-        time.sleep(duration)
-        release(direction)
+        if held_direction:
+            release(held_direction)
+        held_direction = direction
+        if held_direction:
+            press(held_direction)
+            log_and_print('debug', f"Holding reel direction: {held_direction.upper()}")
+        else:
+            log_and_print('debug', "Released reel direction")
 
     try:
         while not stop_event.is_set():
@@ -336,7 +333,7 @@ def fishing_rotation(stop_event):
                 # Neither found — count a few missing frames before declaring the reel UI gone.
                 missing_reel_frames += 1
                 log_and_print('debug', f"Neither green nor orange found — missing frame {missing_reel_frames}")
-                release_reel_keys()
+                set_reel_direction(None)
                 if missing_reel_frames >= 3:
                     log_and_print('info', "Reel mini-game ended")
                     break
@@ -348,7 +345,7 @@ def fishing_rotation(stop_event):
             if green_x is None:
                 missing_green_frames += 1
                 log_and_print('debug', f"Green zone not found, orange at x={orange_x} — missing green frame {missing_green_frames}")
-                release_reel_keys()
+                set_reel_direction(None)
                 if missing_green_frames >= 8:
                     log_and_print('info', "Green zone lost for multiple frames — reel mini-game likely ended/failed")
                     break
@@ -359,61 +356,38 @@ def fishing_rotation(stop_event):
 
             if orange_x is None:
                 log_and_print('debug', f"Orange block not found, green at x={green_x}")
-                release_reel_keys()
+                set_reel_direction(None)
                 time.sleep(REEL_CHECK_INTERVAL)
                 continue
 
             diff = orange_x - green_x
             green_velocity = 0 if previous_green_x is None else green_x - previous_green_x
             previous_green_x = green_x
+            control_error = diff - (green_velocity * REEL_LEAD_FACTOR)
 
             if ENABLE_DETAILED_LOGGING and int(elapsed * 20) % 5 == 0:
                 log_and_print('debug',
                     f"  reel: green_x={green_x} | orange_x={orange_x} | "
-                    f"diff={diff} | green_velocity={green_velocity}"
+                    f"diff={diff} | green_velocity={green_velocity} | control_error={control_error}"
                 )
 
-            # Pulse controller: the bar has inertia, but indefinite holds overshoot.
-            # Direction is based on where the green zone needs to go; duration is
-            # based on error size, with light counter-pulses near center.
-            direction = None
-            duration = 0.0
-            abs_diff = abs(diff)
-
-            if abs_diff <= REEL_CENTER_DEADBAND:
-                # Centered enough. Tiny brake pulse only if momentum is obvious.
-                if green_velocity > 7:
-                    direction, duration = 'a', REEL_PULSE_SHORT
-                elif green_velocity < -7:
-                    direction, duration = 'd', REEL_PULSE_SHORT
-            elif diff > 0:
-                # Green is left of fish. Move right, unless already closing fast.
-                if green_velocity < 6:
-                    direction = 'd'
-                    duration = REEL_PULSE_LONG if abs_diff > REEL_BRAKE_ZONE else REEL_PULSE_MEDIUM
-                else:
-                    # Already moving right; short counter-pulse if close to prevent overshoot.
-                    if abs_diff < REEL_BRAKE_ZONE:
-                        direction, duration = 'a', REEL_PULSE_SHORT
+            # Predictive continuous-hold controller. Positive error means the
+            # green zone needs to move right; negative means left. Velocity lead
+            # prevents holding through the target and overshooting.
+            if control_error > REEL_CENTER_DEADBAND:
+                set_reel_direction('d')
+            elif control_error < -REEL_CENTER_DEADBAND:
+                set_reel_direction('a')
             else:
-                # Green is right of fish. Move left, unless already closing fast.
-                if green_velocity > -6:
-                    direction = 'a'
-                    duration = REEL_PULSE_LONG if abs_diff > REEL_BRAKE_ZONE else REEL_PULSE_MEDIUM
-                else:
-                    # Already moving left; short counter-pulse if close to prevent overshoot.
-                    if abs_diff < REEL_BRAKE_ZONE:
-                        direction, duration = 'd', REEL_PULSE_SHORT
-
-            if direction is None:
-                release_reel_keys()
-                log_and_print('debug', f"Orange centered/controlled (orange_x={orange_x}, green_x={green_x}) — coasting")
-            else:
-                pulse_reel_direction(direction, duration)
+                set_reel_direction(None)
+                log_and_print('debug',
+                    f"Orange centered/controlled (orange_x={orange_x}, green_x={green_x}, "
+                    f"control_error={control_error}) — holding steady"
+                )
 
             time.sleep(REEL_CHECK_INTERVAL)
     finally:
-        release_reel_keys()
+        set_reel_direction(None)
 
     log_and_print('info', "Reel sequence ended. Waiting before next cast...")
     time.sleep(LOOP_DELAY)
