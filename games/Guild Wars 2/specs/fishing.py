@@ -332,11 +332,11 @@ def fishing_rotation(stop_event):
             log_and_print('debug', f"  reel: green_x={green_x} | orange_x={orange_x} | diff={orange_x - green_x}")
         
         if orange_x < green_x - 5:
-            # Orange is to the left of green — press right ('d') to move it right
-            press_and_release('d')
-        elif orange_x > green_x + 5:
-            # Orange is to the right of green — press left ('a') to move it left
+            # Orange is left of the green zone — move the green zone left
             press_and_release('a')
+        elif orange_x > green_x + 5:
+            # Orange is right of the green zone — move the green zone right
+            press_and_release('d')
         else:
             # Orange is within the green zone — hold interact to reel in
             log_and_print('info', f"Orange in green zone! (orange_x={orange_x}, green_x={green_x}) — reeling in")
