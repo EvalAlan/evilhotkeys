@@ -71,6 +71,7 @@ BOBBER_TOLERANCE = 50
 # ──────────────────────────────────────────────────────────────────────
 # Keybinds
 # ──────────────────────────────────────────────────────────────────────
+FISHING_ROD_KEY = key_mapping.get('numpad2', 80)         # switches/equips fishing rod after mounting
 INTERACT_KEY = key_mapping.get('numpad1', 79)            # cast/recast/hook
 
 # ──────────────────────────────────────────────────────────────────────
@@ -222,12 +223,13 @@ def fishing_rotation(stop_event, equip_rod=True):
       3. WAIT_FOR_BITE — loop checking for the catch indicator
       4. REEL — interact + chase the orange block into the green zone
     """
-    # Step 1: Optionally wait for fishing rod swap
+    # Step 1: Optionally equip fishing rod
     if equip_rod:
-        # NumPad2 is both the user's in-game fishing-rod swap key and the script
-        # start key. The physical key press is allowed to pass through to GW2;
-        # do NOT send NumPad2 again here or it can toggle/swap back.
-        log_and_print('info', "Waiting for fishing rod swap from NumPad2...")
+        # The macro runner may consume the physical NumPad2 trigger, so send the
+        # in-game rod-swap key explicitly before casting.
+        log_and_print('info', "Equipping fishing rod via NumPad2...")
+        press(FISHING_ROD_KEY)
+        release(FISHING_ROD_KEY)
         time.sleep(EQUIP_DELAY)
         if check_stop_condition(stop_event):
             return
