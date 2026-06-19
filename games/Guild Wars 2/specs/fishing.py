@@ -44,7 +44,7 @@ def log_and_print(level, msg):
 #   - REEL_GREEN: the green zone in the fishing reel mini-game bar — region (2745, 802) to (3020, 825)
 #   - REEL_ORANGE: the orange "fish" block you chase in the reel mini-game — same region
 # ──────────────────────────────────────────────────────────────────────
-CATCH_INDICATOR_COORDS = (2877, 406)      # center of the bite flash region
+CATCH_INDICATOR_COORDS = (2877, 353)      # center of the bite flash region (y=353 from bite detection)
 REEL_GREEN_COORDS = (2882, 813)           # center of the green reel zone
 REEL_ORANGE_COORDS = (2882, 813)          # same region — we look for orange vs green
 
@@ -55,13 +55,13 @@ REEL_REGION = (2745, 802, 3020, 825)      # reel bar region — REEL actions
 # ──────────────────────────────────────────────────────────────────────
 # Color targets and tolerances
 # ──────────────────────────────────────────────────────────────────────
-CATCH_TARGET_COLOR = (233, 54, 101)      # bright pink/red bite flash
-CATCH_TOLERANCE = 40                       # generous — different biomes vary
+CATCH_TARGET_COLOR = (188, 69, 112)      # bright pink/red bite flash (tuned from detected bite)
+CATCH_TOLERANCE = 50                       # generous — different biomes vary
 
-REEL_GREEN_TARGET = (113, 241, 156)       # green reel zone
+REEL_GREEN_TARGET = (164, 250, 123)       # green reel zone
 REEL_GREEN_TOLERANCE = 35
 
-REEL_ORANGE_TARGET = (200, 80, 30)       # orange fish block (adjusted — original was too dark)
+REEL_ORANGE_TARGET = (242, 212, 90)       # orange fish block
 REEL_ORANGE_TOLERANCE = 40
 
 # Bobber detection — the bobber is a bright white/blue dot on water
