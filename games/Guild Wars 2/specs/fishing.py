@@ -295,6 +295,12 @@ def fishing_rotation(stop_event):
     reel_start = time.time()
     held_direction = None
     missing_reel_frames = 0
+    missing_green_frames = 0
+    previous_green_x = None
+
+    REEL_CENTER_DEADBAND = 10       # close enough; avoid twitching
+    REEL_BRAKE_ZONE = 45            # start counter-steering before crossing center
+    REEL_VELOCITY_BRAKE = 6         # px/frame considered fast enough to brake early
 
     def set_reel_direction(direction):
         """Hold A/D for reel steering. direction is 'a', 'd', or None."""
@@ -338,10 +344,16 @@ def fishing_rotation(stop_event):
             missing_reel_frames = 0
 
             if green_x is None:
-                log_and_print('debug', f"Green zone not found, orange at x={orange_x}")
+                missing_green_frames += 1
+                log_and_print('debug', f"Green zone not found, orange at x={orange_x} — missing green frame {missing_green_frames}")
                 set_reel_direction(None)
+                if missing_green_frames >= 8:
+                    log_and_print('info', "Green zone lost for multiple frames — reel mini-game likely ended/failed")
+                    break
                 time.sleep(REEL_CHECK_INTERVAL)
                 continue
+
+            missing_green_frames = 0
 
             if orange_x is None:
                 log_and_print('debug', f"Orange block not found, green at x={green_x}")
@@ -350,20 +362,44 @@ def fishing_rotation(stop_event):
                 continue
 
             diff = orange_x - green_x
-            if ENABLE_DETAILED_LOGGING and int(elapsed * 20) % 5 == 0:
-                log_and_print('debug', f"  reel: green_x={green_x} | orange_x={orange_x} | diff={diff}")
+            green_velocity = 0 if previous_green_x is None else green_x - previous_green_x
+            previous_green_x = green_x
 
-            if diff < -5:
-                # Orange is left of the green zone — hold A to move green left
-                set_reel_direction('a')
-            elif diff > 5:
-                # Orange is right of the green zone — hold D to move green right
-                set_reel_direction('d')
+            if ENABLE_DETAILED_LOGGING and int(elapsed * 20) % 5 == 0:
+                log_and_print('debug',
+                    f"  reel: green_x={green_x} | orange_x={orange_x} | "
+                    f"diff={diff} | green_velocity={green_velocity}"
+                )
+
+            # Velocity-aware steering. The green bar has inertia, so holding the
+            # correct direction until diff==0 overshoots badly. Accelerate when
+            # far from target, brake with the opposite direction when close or
+            # moving too fast toward the fish.
+            direction = None
+            if diff > REEL_BRAKE_ZONE:
+                # Green is far left of fish; move right unless already moving right fast.
+                direction = None if green_velocity > REEL_VELOCITY_BRAKE else 'd'
+            elif diff < -REEL_BRAKE_ZONE:
+                # Green is far right of fish; move left unless already moving left fast.
+                direction = None if green_velocity < -REEL_VELOCITY_BRAKE else 'a'
+            elif diff > REEL_CENTER_DEADBAND:
+                # Close and green is left of fish. Brake if still moving right.
+                direction = 'a' if green_velocity > 0 else 'd'
+            elif diff < -REEL_CENTER_DEADBAND:
+                # Close and green is right of fish. Brake if still moving left.
+                direction = 'd' if green_velocity < 0 else 'a'
             else:
-                # Orange is inside the green zone. Do not end the mini-game here;
-                # fishing requires keeping the zone over the fish until the UI disappears.
-                set_reel_direction(None)
-                log_and_print('debug', f"Orange centered (orange_x={orange_x}, green_x={green_x}) — holding steady")
+                # Centered enough. Counter-steer only if inertia is carrying us away.
+                if green_velocity > REEL_VELOCITY_BRAKE:
+                    direction = 'a'
+                elif green_velocity < -REEL_VELOCITY_BRAKE:
+                    direction = 'd'
+                else:
+                    direction = None
+
+            set_reel_direction(direction)
+            if direction is None:
+                log_and_print('debug', f"Orange centered/controlled (orange_x={orange_x}, green_x={green_x}) — coasting")
 
             time.sleep(REEL_CHECK_INTERVAL)
     finally:
