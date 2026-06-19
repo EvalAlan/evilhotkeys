@@ -74,7 +74,7 @@ BOBBER_TOLERANCE = 50
 CAST_DELAY = 2.5          # wait after pressing "Begin Fishing" for the cast animation
 BITE_CHECK_INTERVAL = 0.1 # how often to check for a bite
 REEL_CHECK_INTERVAL = 0.05
-REEL_TIMEOUT = 30.0       # max seconds to chase fish before giving up; tougher fish can take >15s
+REEL_TIMEOUT = 60.0       # max seconds to chase fish before giving up; hard catches can run long
 EQUIP_DELAY = 2.5         # wait after equipping fishing rod
 LOOP_DELAY = 0.5          # delay between fishing attempts
 
