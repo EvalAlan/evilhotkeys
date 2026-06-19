@@ -399,25 +399,18 @@ def fishing_rotation(stop_event, equip_rod=True):
 def run(stop_event):
     """Entry point — two start hotkeys.
 
-    NumPad2: equip/swap to fishing rod, then start continuous fishing.
-    NumPad1: start continuous fishing without equipping first.
-    Cast/interact: NumPad1 is also used by the bot for cast/recast/hook.
+    NumPad2: equip/swap to fishing rod, then perform one cast/reel rotation.
+    NumPad1: perform one cast/reel rotation without equipping first.
+    Cast/interact: NumPad1 is also used by the bot for cast/hook during that rotation.
     Stop: stop_event set by the macro runner.
     """
     EQUIP_AND_START_KEY = key_mapping.get('numpad2', 'numpad2')
     START_ONLY_KEY = key_mapping.get('numpad1', 'numpad1')
 
-    log_and_print('info', "Fishing bot ready — NumPad2 equips rod + starts; NumPad1 starts if already on rod")
+    log_and_print('info', "Fishing bot ready — NumPad2 equips rod + casts once; NumPad1 casts once if already on rod")
 
     def wait_for_key_release(key):
         while keyboard.is_pressed(key) and not stop_event.is_set():
-            stop_event.wait(0.05)
-
-    def run_fishing_loop(equip_first):
-        first_rotation = True
-        while not stop_event.is_set():
-            fishing_rotation(stop_event, equip_rod=(equip_first and first_rotation))
-            first_rotation = False
             stop_event.wait(0.05)
 
     while not stop_event.is_set():
@@ -426,19 +419,21 @@ def run(stop_event):
             break
 
         if keyboard.is_pressed(EQUIP_AND_START_KEY):
-            log_and_print('info', "NumPad2 pressed — equipping fishing rod and starting loop")
+            log_and_print('info', "NumPad2 pressed — equipping fishing rod and starting one cast")
             wait_for_key_release(EQUIP_AND_START_KEY)
             try:
-                run_fishing_loop(equip_first=True)
+                fishing_rotation(stop_event, equip_rod=True)
+                log_and_print('info', "Fishing rotation complete — waiting for next NumPad1/NumPad2 cast")
             except Exception as exc:
                 log_and_print('error', f"Unexpected error: {exc}")
                 raise
 
         elif keyboard.is_pressed(START_ONLY_KEY):
-            log_and_print('info', "NumPad1 pressed — starting fishing loop without equipping")
+            log_and_print('info', "NumPad1 pressed — starting one cast without equipping")
             wait_for_key_release(START_ONLY_KEY)
             try:
-                run_fishing_loop(equip_first=False)
+                fishing_rotation(stop_event, equip_rod=False)
+                log_and_print('info', "Fishing rotation complete — waiting for next NumPad1/NumPad2 cast")
             except Exception as exc:
                 log_and_print('error', f"Unexpected error: {exc}")
                 raise
