@@ -74,7 +74,7 @@ BOBBER_TOLERANCE = 50
 CAST_DELAY = 2.5          # wait after pressing "Begin Fishing" for the cast animation
 BITE_CHECK_INTERVAL = 0.1 # how often to check for a bite
 REEL_CHECK_INTERVAL = 0.05
-REEL_TIMEOUT = 15.0       # max seconds to chase fish before giving up
+REEL_TIMEOUT = 30.0       # max seconds to chase fish before giving up; tougher fish can take >15s
 EQUIP_DELAY = 2.5         # wait after equipping fishing rod
 LOOP_DELAY = 0.5          # delay between fishing attempts
 
@@ -298,7 +298,7 @@ def fishing_rotation(stop_event):
     missing_green_frames = 0
     previous_green_x = None
 
-    REEL_CENTER_DEADBAND = 14       # close enough; avoid twitching
+    REEL_CENTER_DEADBAND = 18       # close enough; avoid twitchy overcorrection
     REEL_LEAD_FACTOR = 3            # velocity lead compensation, px/frame -> px error
 
     def set_reel_direction(direction):
@@ -390,7 +390,7 @@ def fishing_rotation(stop_event):
         set_reel_direction(None)
 
     log_and_print('info', "Reel sequence ended. Waiting before next cast...")
-    time.sleep(LOOP_DELAY)
+    stop_event.wait(LOOP_DELAY)
 
 
 def run(stop_event):
