@@ -61,8 +61,8 @@ CATCH_TOLERANCE = 50                       # generous — different biomes vary
 REEL_GREEN_TARGET = (129, 220, 101)       # green reel zone (empirical)
 REEL_GREEN_TOLERANCE = 40
 
-REEL_ORANGE_TARGET = (83, 40, 5)          # orange fish block (empirical — dark brown/orange)
-REEL_ORANGE_TOLERANCE = 40
+REEL_ORANGE_TARGET = (242, 212, 90)       # bright orange/yellow fish marker; dark brown body matches too much UI
+REEL_ORANGE_TOLERANCE = 35
 
 # Bobber detection — the bobber is a bright white/blue dot on water
 BOBBER_TARGET_COLOR = (200, 210, 220)
@@ -299,7 +299,7 @@ def fishing_rotation(stop_event):
     previous_green_x = None
 
     REEL_CENTER_DEADBAND = 14       # close enough; avoid twitching
-    REEL_LEAD_FACTOR = 5            # velocity lead compensation, px/frame -> px error
+    REEL_LEAD_FACTOR = 3            # velocity lead compensation, px/frame -> px error
 
     def set_reel_direction(direction):
         """Hold A/D continuously until the controller changes direction."""
