@@ -294,6 +294,7 @@ def fishing_rotation(stop_event):
     log_and_print('info', "Starting reel mini-game...")
     reel_start = time.time()
     held_direction = None
+    missing_reel_frames = 0
 
     def set_reel_direction(direction):
         """Hold A/D for reel steering. direction is 'a', 'd', or None."""
@@ -324,15 +325,17 @@ def fishing_rotation(stop_event):
             green_x, orange_x = get_reel_positions()
 
             if green_x is None and orange_x is None:
-                # Neither found — might be done or UI changed
-                log_and_print('debug', "Neither green nor orange found — checking if mini-game ended")
+                # Neither found — count a few missing frames before declaring the reel UI gone.
+                missing_reel_frames += 1
+                log_and_print('debug', f"Neither green nor orange found — missing frame {missing_reel_frames}")
                 set_reel_direction(None)
-                time.sleep(0.3)
-                # Check if we're still in the reel mini-game
-                if not detect_reel_green() and not detect_reel_orange():
+                if missing_reel_frames >= 3:
                     log_and_print('info', "Reel mini-game ended")
                     break
+                time.sleep(REEL_CHECK_INTERVAL)
                 continue
+
+            missing_reel_frames = 0
 
             if green_x is None:
                 log_and_print('debug', f"Green zone not found, orange at x={orange_x}")
@@ -357,20 +360,16 @@ def fishing_rotation(stop_event):
                 # Orange is right of the green zone — hold D to move green right
                 set_reel_direction('d')
             else:
-                # Orange is within the green zone — stop steering and reel in
+                # Orange is inside the green zone. Do not end the mini-game here;
+                # fishing requires keeping the zone over the fish until the UI disappears.
                 set_reel_direction(None)
-                log_and_print('info', f"Orange in green zone! (orange_x={orange_x}, green_x={green_x}) — reeling in")
-                press(interact_key)
-                time.sleep(0.5)
-                release(interact_key)
-                time.sleep(1.0)  # wait for reel animation
-                break
+                log_and_print('debug', f"Orange centered (orange_x={orange_x}, green_x={green_x}) — holding steady")
 
             time.sleep(REEL_CHECK_INTERVAL)
     finally:
         set_reel_direction(None)
 
-    log_and_print('info', "Fish caught! Waiting before next cast...")
+    log_and_print('info', "Reel sequence ended. Waiting before next cast...")
     time.sleep(LOOP_DELAY)
 
 
