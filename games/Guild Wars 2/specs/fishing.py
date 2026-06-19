@@ -394,33 +394,34 @@ def fishing_rotation(stop_event):
 
 
 def run(stop_event):
-    """Entry point — hold trigger key to fish, release to stop.
-    
-    Trigger: NumPad2 (hold to fish)
-    Stop: Release NumPad2, or stop_event set
+    """Entry point — press trigger once to start fishing until stopped.
+
+    Trigger: NumPad2 starts the fishing loop.
+    Cast/interact: NumPad1 is used by the bot for cast/recast/hook.
+    Stop: stop_event set by the macro runner.
     """
     TRIGGER_KEY = key_mapping.get('numpad2', 'numpad2')
-    
-    log_and_print('info', f"Fishing bot ready — hold NumPad2 to fish, release to stop")
-    
+
+    log_and_print('info', "Fishing bot ready — press NumPad2 once to start, stop macro to end")
+
     while not stop_event.is_set():
         wait_if_paused()
         if stop_event.is_set():
             break
-        
+
         if keyboard.is_pressed(TRIGGER_KEY):
-            log_and_print('info', "Trigger pressed — starting fishing loop")
+            log_and_print('info', "Trigger pressed — starting continuous fishing loop")
+
+            # Debounce the trigger press so it does not immediately retrigger logs.
+            while keyboard.is_pressed(TRIGGER_KEY) and not stop_event.is_set():
+                stop_event.wait(0.05)
+
             try:
-                # Keep fishing while the trigger is held. One fishing_rotation()
-                # performs exactly one cast/reel attempt; the outer loop handles
-                # recasting after a catch, timeout, or missed bite.
-                while keyboard.is_pressed(TRIGGER_KEY) and not stop_event.is_set():
+                while not stop_event.is_set():
                     fishing_rotation(stop_event)
                     stop_event.wait(0.05)
             except Exception as exc:
                 log_and_print('error', f"Unexpected error: {exc}")
                 raise
-
-            log_and_print('info', "Trigger released — fishing stopped")
 
         stop_event.wait(0.05)
