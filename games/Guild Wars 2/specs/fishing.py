@@ -71,6 +71,7 @@ BOBBER_TOLERANCE = 50
 # ──────────────────────────────────────────────────────────────────────
 # Keybinds
 # ──────────────────────────────────────────────────────────────────────
+FISHING_MODE_KEY = 'j'                                  # open/equip fishing mode/tool
 FISHING_ROD_KEY = key_mapping.get('numpad2', 80)         # switches/equips fishing rod after mounting
 INTERACT_KEY = key_mapping.get('numpad1', 79)            # cast/recast/hook
 
@@ -225,9 +226,16 @@ def fishing_rotation(stop_event, equip_rod=True):
     """
     # Step 1: Optionally equip fishing rod
     if equip_rod:
-        # The macro runner may consume the physical NumPad2 trigger, so send the
-        # in-game rod-swap key explicitly before casting.
-        log_and_print('info', "Equipping fishing rod via NumPad2...")
+        # After mounting, GW2 needs the fishing mode/tool key first, then the
+        # rod/weapon swap key. The macro runner may consume the physical start
+        # key, so synthesize both game inputs explicitly.
+        log_and_print('info', "Equipping fishing mode via J...")
+        press_and_release(FISHING_MODE_KEY)
+        time.sleep(0.4)
+        if check_stop_condition(stop_event):
+            return
+
+        log_and_print('info', "Switching to fishing rod via NumPad2...")
         press(FISHING_ROD_KEY)
         release(FISHING_ROD_KEY)
         time.sleep(EQUIP_DELAY)
