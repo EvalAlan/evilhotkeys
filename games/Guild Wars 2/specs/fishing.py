@@ -409,17 +409,18 @@ def run(stop_event):
             break
         
         if keyboard.is_pressed(TRIGGER_KEY):
-            log_and_print('info', "Trigger pressed — starting fishing rotation")
+            log_and_print('info', "Trigger pressed — starting fishing loop")
             try:
-                fishing_rotation(stop_event)
+                # Keep fishing while the trigger is held. One fishing_rotation()
+                # performs exactly one cast/reel attempt; the outer loop handles
+                # recasting after a catch, timeout, or missed bite.
+                while keyboard.is_pressed(TRIGGER_KEY) and not stop_event.is_set():
+                    fishing_rotation(stop_event)
+                    stop_event.wait(0.05)
             except Exception as exc:
                 log_and_print('error', f"Unexpected error: {exc}")
                 raise
-            
-            # Wait for key release before re-arming
-            while keyboard.is_pressed(TRIGGER_KEY) and not stop_event.is_set():
-                time.sleep(0.05)
-            
+
             log_and_print('info', "Trigger released — fishing stopped")
-        
-        time.sleep(0.05)
+
+        stop_event.wait(0.05)
