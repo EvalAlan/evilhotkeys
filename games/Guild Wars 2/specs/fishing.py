@@ -40,17 +40,17 @@ def log_and_print(level, msg):
 # Pixel coordinates (triple 1080p — adjust for your layout)
 #
 # These cover the fishing interaction UI:
-#   - CATCH_INDICATOR: the red/pink "bite" flash near the bobber
-#   - REEL_GREEN: the green zone in the fishing reel mini-game bar
-#   - REEL_ORANGE: the orange "fish" block you chase in the reel mini-game
+#   - CATCH_INDICATOR: the red/pink "bite" flash — region (2770, 328) to (2985, 485)
+#   - REEL_GREEN: the green zone in the fishing reel mini-game bar — region (2745, 802) to (3020, 825)
+#   - REEL_ORANGE: the orange "fish" block you chase in the reel mini-game — same region
 # ──────────────────────────────────────────────────────────────────────
-CATCH_INDICATOR_COORDS = (1910, 895)      # center of the bite flash region
-REEL_GREEN_COORDS = (1910, 1608)          # center of the green reel zone
-REEL_ORANGE_COORDS = (1910, 1608)         # same region — we look for orange vs green
+CATCH_INDICATOR_COORDS = (2877, 406)      # center of the bite flash region
+REEL_GREEN_COORDS = (2882, 813)           # center of the green reel zone
+REEL_ORANGE_COORDS = (2882, 813)          # same region — we look for orange vs green
 
 # Search regions for pixel_search-style detection (fallback)
-CATCH_REGION = (1855, 840, 1965, 950)     # (x1, y1, x2, y2)
-REEL_REGION = (1790, 1590, 2030, 1624)    # reel bar region
+CATCH_REGION = (2770, 328, 2985, 485)     # (x1, y1, x2, y2) — WAIT_FOR_BITE
+REEL_REGION = (2745, 802, 3020, 825)      # reel bar region — REEL actions
 
 # ──────────────────────────────────────────────────────────────────────
 # Color targets and tolerances
