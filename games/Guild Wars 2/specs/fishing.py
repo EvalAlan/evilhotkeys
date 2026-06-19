@@ -293,61 +293,83 @@ def fishing_rotation(stop_event):
     # Step 5: Reel mini-game — chase the orange block into the green zone
     log_and_print('info', "Starting reel mini-game...")
     reel_start = time.time()
-    
-    while not stop_event.is_set():
-        wait_if_paused()
-        if stop_event.is_set():
-            break
-        
-        elapsed = time.time() - reel_start
-        if elapsed > REEL_TIMEOUT:
-            log_and_print('warning', f"Reel timeout after {REEL_TIMEOUT}s — fish escaped")
-            break
-        
-        # Get positions of green zone and orange block
-        green_x, orange_x = get_reel_positions()
-        
-        if green_x is None and orange_x is None:
-            # Neither found — might be done or UI changed
-            log_and_print('debug', "Neither green nor orange found — checking if mini-game ended")
-            time.sleep(0.3)
-            # Check if we're still in the reel mini-game
-            if not detect_reel_green() and not detect_reel_orange():
-                log_and_print('info', "Reel mini-game ended")
-                break
-            continue
-        
-        if green_x is None:
-            log_and_print('debug', f"Green zone not found, orange at x={orange_x}")
-            time.sleep(REEL_CHECK_INTERVAL)
-            continue
-        
-        if orange_x is None:
-            log_and_print('debug', f"Orange block not found, green at x={green_x}")
-            time.sleep(REEL_CHECK_INTERVAL)
-            continue
-        
-        # Both found — move orange toward green
-        if ENABLE_DETAILED_LOGGING and int(elapsed * 20) % 5 == 0:
-            log_and_print('debug', f"  reel: green_x={green_x} | orange_x={orange_x} | diff={orange_x - green_x}")
-        
-        if orange_x < green_x - 5:
-            # Orange is left of the green zone — move the green zone left
-            press_and_release('a')
-        elif orange_x > green_x + 5:
-            # Orange is right of the green zone — move the green zone right
-            press_and_release('d')
+    held_direction = None
+
+    def set_reel_direction(direction):
+        """Hold A/D for reel steering. direction is 'a', 'd', or None."""
+        nonlocal held_direction
+        if direction == held_direction:
+            return
+        if held_direction:
+            release(held_direction)
+        held_direction = direction
+        if held_direction:
+            press(held_direction)
+            log_and_print('debug', f"Holding reel direction: {held_direction.upper()}")
         else:
-            # Orange is within the green zone — hold interact to reel in
-            log_and_print('info', f"Orange in green zone! (orange_x={orange_x}, green_x={green_x}) — reeling in")
-            press(interact_key)
-            time.sleep(0.5)
-            release(interact_key)
-            time.sleep(1.0)  # wait for reel animation
-            break
-        
-        time.sleep(REEL_CHECK_INTERVAL)
-    
+            log_and_print('debug', "Released reel direction")
+
+    try:
+        while not stop_event.is_set():
+            wait_if_paused()
+            if stop_event.is_set():
+                break
+
+            elapsed = time.time() - reel_start
+            if elapsed > REEL_TIMEOUT:
+                log_and_print('warning', f"Reel timeout after {REEL_TIMEOUT}s — fish escaped")
+                break
+
+            # Get positions of green zone and orange block
+            green_x, orange_x = get_reel_positions()
+
+            if green_x is None and orange_x is None:
+                # Neither found — might be done or UI changed
+                log_and_print('debug', "Neither green nor orange found — checking if mini-game ended")
+                set_reel_direction(None)
+                time.sleep(0.3)
+                # Check if we're still in the reel mini-game
+                if not detect_reel_green() and not detect_reel_orange():
+                    log_and_print('info', "Reel mini-game ended")
+                    break
+                continue
+
+            if green_x is None:
+                log_and_print('debug', f"Green zone not found, orange at x={orange_x}")
+                set_reel_direction(None)
+                time.sleep(REEL_CHECK_INTERVAL)
+                continue
+
+            if orange_x is None:
+                log_and_print('debug', f"Orange block not found, green at x={green_x}")
+                set_reel_direction(None)
+                time.sleep(REEL_CHECK_INTERVAL)
+                continue
+
+            diff = orange_x - green_x
+            if ENABLE_DETAILED_LOGGING and int(elapsed * 20) % 5 == 0:
+                log_and_print('debug', f"  reel: green_x={green_x} | orange_x={orange_x} | diff={diff}")
+
+            if diff < -5:
+                # Orange is left of the green zone — hold A to move green left
+                set_reel_direction('a')
+            elif diff > 5:
+                # Orange is right of the green zone — hold D to move green right
+                set_reel_direction('d')
+            else:
+                # Orange is within the green zone — stop steering and reel in
+                set_reel_direction(None)
+                log_and_print('info', f"Orange in green zone! (orange_x={orange_x}, green_x={green_x}) — reeling in")
+                press(interact_key)
+                time.sleep(0.5)
+                release(interact_key)
+                time.sleep(1.0)  # wait for reel animation
+                break
+
+            time.sleep(REEL_CHECK_INTERVAL)
+    finally:
+        set_reel_direction(None)
+
     log_and_print('info', "Fish caught! Waiting before next cast...")
     time.sleep(LOOP_DELAY)
 
