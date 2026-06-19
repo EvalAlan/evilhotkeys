@@ -434,20 +434,36 @@ def run(stop_event):
         while keyboard.is_pressed(key) and not stop_event.is_set():
             stop_event.wait(0.05)
 
-    def send_hotkey(description, combo):
+    def send_combo(description, modifiers, key):
+        """Send a hotkey using explicit key down/up events.
+
+        keyboard.press_and_release('alt+shift+k') is not reliable for GW2 here,
+        so hold modifiers manually, tap the key, then release in reverse order.
+        """
+        combo = '+'.join([*modifiers, key])
         log_and_print('info', f"{description} — sending {combo}")
-        keyboard.press_and_release(combo)
+        try:
+            for modifier in modifiers:
+                keyboard.press(modifier)
+                time.sleep(0.03)
+            keyboard.press(key)
+            time.sleep(0.05)
+            keyboard.release(key)
+        finally:
+            for modifier in reversed(modifiers):
+                keyboard.release(modifier)
+                time.sleep(0.03)
         stop_event.wait(0.2)
 
+    def mount_skimmer():
+        send_combo("F8 pressed — mounting skimmer", ['alt', 'shift'], 'k')
+
     def mount_skiff_from_skimmer():
-        log_and_print('info', "F9 pressed — dismounting skimmer")
-        keyboard.press_and_release('alt+shift+k')
+        send_combo("F9 pressed — dismounting skimmer", ['alt', 'shift'], 'k')
         stop_event.wait(0.6)
         if stop_event.is_set():
             return
-        log_and_print('info', "F9 pressed — mounting skiff")
-        keyboard.press_and_release('ctrl+shift+k')
-        stop_event.wait(0.2)
+        send_combo("F9 pressed — mounting skiff", ['ctrl', 'shift'], 'k')
 
     while not stop_event.is_set():
         wait_if_paused()
@@ -456,7 +472,7 @@ def run(stop_event):
 
         if keyboard.is_pressed(MOUNT_SKIMMER_KEY):
             wait_for_key_release(MOUNT_SKIMMER_KEY)
-            send_hotkey("F8 pressed — mounting skimmer", 'alt+shift+k')
+            mount_skimmer()
 
         elif keyboard.is_pressed(MOUNT_SKIFF_KEY):
             wait_for_key_release(MOUNT_SKIFF_KEY)
