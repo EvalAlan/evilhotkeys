@@ -127,25 +127,50 @@ def detect_reel_orange():
 
 def get_reel_positions():
     """Get approximate x-positions of green zone and orange block in the reel bar.
-    
-    Samples horizontally across the reel region to find where green and orange are.
+
+    The green zone is not reliably on the vertical centerline. In screenshots it
+    often lives in the upper half of the reel region while the orange fish block
+    crosses the centerline, so scan the whole rectangle and return bbox centers.
     Returns (green_x, orange_x) or (None, None).
     """
     x1, y1, x2, y2 = REEL_REGION
-    mid_y = (y1 + y2) // 2
-    
-    green_x = None
-    orange_x = None
-    
-    # Scan left to right through the reel region
-    for x in range(x1, x2, 4):  # step 4 for speed
-        color = pixel_get_color(x, mid_y)
-        if color is None:
-            continue
-        if colors_close(color, REEL_GREEN_TARGET, REEL_GREEN_TOLERANCE):
-            green_x = x
-        if colors_close(color, REEL_ORANGE_TARGET, REEL_ORANGE_TOLERANCE):
-            orange_x = x
+
+    green_points = []
+    orange_points = []
+
+    try:
+        from PIL import ImageGrab
+        image = ImageGrab.grab(bbox=(x1, y1, x2, y2))
+        if image is not None:
+            image = image.convert('RGB')
+            for local_y in range(0, y2 - y1, 2):
+                for local_x in range(0, x2 - x1, 2):
+                    color = image.getpixel((local_x, local_y))
+                    screen_x = x1 + local_x
+                    if colors_close(color, REEL_GREEN_TARGET, REEL_GREEN_TOLERANCE):
+                        green_points.append(screen_x)
+                    if colors_close(color, REEL_ORANGE_TARGET, REEL_ORANGE_TOLERANCE):
+                        orange_points.append(screen_x)
+    except Exception as exc:
+        log_and_print('warning', f"Reel screenshot scan failed, falling back to point scan: {exc}")
+        for y in range(y1, y2, 2):
+            for x in range(x1, x2, 2):
+                color = pixel_get_color(x, y)
+                if color is None:
+                    continue
+                if colors_close(color, REEL_GREEN_TARGET, REEL_GREEN_TOLERANCE):
+                    green_points.append(x)
+                if colors_close(color, REEL_ORANGE_TARGET, REEL_ORANGE_TOLERANCE):
+                    orange_points.append(x)
+
+    green_x = (min(green_points) + max(green_points)) // 2 if green_points else None
+    orange_x = (min(orange_points) + max(orange_points)) // 2 if orange_points else None
+
+    if ENABLE_DETAILED_LOGGING:
+        log_and_print('debug',
+            f"Reel scan: green_x={green_x} matches={len(green_points)} | "
+            f"orange_x={orange_x} matches={len(orange_points)}"
+        )
 
     return green_x, orange_x
 
