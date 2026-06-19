@@ -74,6 +74,8 @@ BOBBER_TOLERANCE = 50
 FISHING_MODE_KEY = 'j'                                  # open/equip fishing mode/tool
 FISHING_ROD_KEY = key_mapping.get('numpad2', 80)         # switches/equips fishing rod after mounting
 INTERACT_KEY = key_mapping.get('numpad1', 79)            # cast/recast/hook
+MOUNT_SKIMMER_KEY = key_mapping.get('f8', 'f8')          # sends Alt+Shift+K
+MOUNT_SKIFF_KEY = key_mapping.get('f9', 'f9')            # sends Ctrl+Shift+K
 
 # ──────────────────────────────────────────────────────────────────────
 # Timing constants
@@ -418,24 +420,39 @@ def run(stop_event):
 
     NumPad2: equip/swap to fishing rod, then perform one cast/reel rotation.
     NumPad1: perform one cast/reel rotation without equipping first.
+    F8: mount skimmer via Alt+Shift+K.
+    F9: mount skiff via Ctrl+Shift+K.
     Cast/interact: NumPad1 is also used by the bot for cast/hook during that rotation.
     Stop: stop_event set by the macro runner.
     """
     EQUIP_AND_START_KEY = key_mapping.get('numpad2', 'numpad2')
     START_ONLY_KEY = key_mapping.get('numpad1', 'numpad1')
 
-    log_and_print('info', "Fishing bot ready — NumPad2 equips rod + casts once; NumPad1 casts once if already on rod")
+    log_and_print('info', "Fishing bot ready — NumPad2 equips+casts, NumPad1 casts, F8 skimmer, F9 skiff")
 
     def wait_for_key_release(key):
         while keyboard.is_pressed(key) and not stop_event.is_set():
             stop_event.wait(0.05)
+
+    def send_hotkey(description, combo):
+        log_and_print('info', f"{description} — sending {combo}")
+        keyboard.press_and_release(combo)
+        stop_event.wait(0.2)
 
     while not stop_event.is_set():
         wait_if_paused()
         if stop_event.is_set():
             break
 
-        if keyboard.is_pressed(EQUIP_AND_START_KEY):
+        if keyboard.is_pressed(MOUNT_SKIMMER_KEY):
+            wait_for_key_release(MOUNT_SKIMMER_KEY)
+            send_hotkey("F8 pressed — mounting skimmer", 'alt+shift+k')
+
+        elif keyboard.is_pressed(MOUNT_SKIFF_KEY):
+            wait_for_key_release(MOUNT_SKIFF_KEY)
+            send_hotkey("F9 pressed — mounting skiff", 'ctrl+shift+k')
+
+        elif keyboard.is_pressed(EQUIP_AND_START_KEY):
             log_and_print('info', "NumPad2 pressed — equipping fishing rod and starting one cast")
             wait_for_key_release(EQUIP_AND_START_KEY)
             try:
