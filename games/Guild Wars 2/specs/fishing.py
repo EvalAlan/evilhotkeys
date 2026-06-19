@@ -69,6 +69,11 @@ BOBBER_TARGET_COLOR = (200, 210, 220)
 BOBBER_TOLERANCE = 50
 
 # ──────────────────────────────────────────────────────────────────────
+# Keybinds
+# ──────────────────────────────────────────────────────────────────────
+INTERACT_KEY = key_mapping.get('numpad1', 79)            # cast/recast/hook
+
+# ──────────────────────────────────────────────────────────────────────
 # Timing constants
 # ──────────────────────────────────────────────────────────────────────
 CAST_DELAY = 2.5          # wait after pressing "Begin Fishing" for the cast animation
@@ -217,10 +222,12 @@ def fishing_rotation(stop_event, equip_rod=True):
       3. WAIT_FOR_BITE — loop checking for the catch indicator
       4. REEL — interact + chase the orange block into the green zone
     """
-    # Step 1: Optionally equip fishing rod
+    # Step 1: Optionally wait for fishing rod swap
     if equip_rod:
-        log_and_print('info', "Equipping fishing rod...")
-        press_and_release('j')  # Equip fishing keybind
+        # NumPad2 is both the user's in-game fishing-rod swap key and the script
+        # start key. The physical key press is allowed to pass through to GW2;
+        # do NOT send NumPad2 again here or it can toggle/swap back.
+        log_and_print('info', "Waiting for fishing rod swap from NumPad2...")
         time.sleep(EQUIP_DELAY)
         if check_stop_condition(stop_event):
             return
@@ -229,7 +236,7 @@ def fishing_rotation(stop_event, equip_rod=True):
 
     # Step 2: Cast the line
     log_and_print('info', "Casting fishing line...")
-    interact_key = key_mapping.get('numpad1', 79)
+    interact_key = INTERACT_KEY
     press(interact_key)
     release(interact_key)
     time.sleep(CAST_DELAY)
