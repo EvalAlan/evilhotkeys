@@ -75,7 +75,7 @@ FISHING_MODE_KEY = 'j'                                  # open/equip fishing mod
 FISHING_ROD_KEY = key_mapping.get('numpad2', 80)         # switches/equips fishing rod after mounting
 INTERACT_KEY = key_mapping.get('numpad1', 79)            # cast/recast/hook
 MOUNT_SKIMMER_KEY = key_mapping.get('f8', 'f8')          # sends Alt+Shift+K
-MOUNT_SKIFF_KEY = key_mapping.get('f9', 'f9')            # sends Ctrl+Shift+K
+MOUNT_SKIFF_KEY = key_mapping.get('f9', 'f9')            # dismount skimmer, then sends Ctrl+Shift+K
 
 # ──────────────────────────────────────────────────────────────────────
 # Timing constants
@@ -421,7 +421,7 @@ def run(stop_event):
     NumPad2: equip/swap to fishing rod, then perform one cast/reel rotation.
     NumPad1: perform one cast/reel rotation without equipping first.
     F8: mount skimmer via Alt+Shift+K.
-    F9: mount skiff via Ctrl+Shift+K.
+    F9: dismount skimmer via Alt+Shift+K, then mount skiff via Ctrl+Shift+K.
     Cast/interact: NumPad1 is also used by the bot for cast/hook during that rotation.
     Stop: stop_event set by the macro runner.
     """
@@ -439,6 +439,16 @@ def run(stop_event):
         keyboard.press_and_release(combo)
         stop_event.wait(0.2)
 
+    def mount_skiff_from_skimmer():
+        log_and_print('info', "F9 pressed — dismounting skimmer")
+        keyboard.press_and_release('alt+shift+k')
+        stop_event.wait(0.6)
+        if stop_event.is_set():
+            return
+        log_and_print('info', "F9 pressed — mounting skiff")
+        keyboard.press_and_release('ctrl+shift+k')
+        stop_event.wait(0.2)
+
     while not stop_event.is_set():
         wait_if_paused()
         if stop_event.is_set():
@@ -450,7 +460,7 @@ def run(stop_event):
 
         elif keyboard.is_pressed(MOUNT_SKIFF_KEY):
             wait_for_key_release(MOUNT_SKIFF_KEY)
-            send_hotkey("F9 pressed — mounting skiff", 'ctrl+shift+k')
+            mount_skiff_from_skimmer()
 
         elif keyboard.is_pressed(EQUIP_AND_START_KEY):
             log_and_print('info', "NumPad2 pressed — equipping fishing rod and starting one cast")
