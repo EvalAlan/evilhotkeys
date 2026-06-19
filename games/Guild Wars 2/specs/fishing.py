@@ -208,7 +208,7 @@ def pixel_search_in_region(color, x1, y1, x2, y2, tolerance=0):
         return None
 
 
-def fishing_rotation(stop_event):
+def fishing_rotation(stop_event, equip_rod=True):
     """Main fishing state machine.
     
     States:
@@ -217,12 +217,15 @@ def fishing_rotation(stop_event):
       3. WAIT_FOR_BITE — loop checking for the catch indicator
       4. REEL — interact + chase the orange block into the green zone
     """
-    # Step 1: Equip fishing rod
-    log_and_print('info', "Equipping fishing rod...")
-    press_and_release('j')  # Equip fishing keybind
-    time.sleep(EQUIP_DELAY)
-    if check_stop_condition(stop_event):
-        return
+    # Step 1: Optionally equip fishing rod
+    if equip_rod:
+        log_and_print('info', "Equipping fishing rod...")
+        press_and_release('j')  # Equip fishing keybind
+        time.sleep(EQUIP_DELAY)
+        if check_stop_condition(stop_event):
+            return
+    else:
+        log_and_print('debug', "Skipping fishing rod equip — starting from current equipment")
 
     # Step 2: Cast the line
     log_and_print('info', "Casting fishing line...")
@@ -394,32 +397,48 @@ def fishing_rotation(stop_event):
 
 
 def run(stop_event):
-    """Entry point — press trigger once to start fishing until stopped.
+    """Entry point — two start hotkeys.
 
-    Trigger: F9 starts the fishing loop. Do not use NumPad2: GW2 treats it as a weapon/keybind input.
-    Cast/interact: NumPad1 is used by the bot for cast/recast/hook.
+    NumPad2: equip/swap to fishing rod, then start continuous fishing.
+    NumPad1: start continuous fishing without equipping first.
+    Cast/interact: NumPad1 is also used by the bot for cast/recast/hook.
     Stop: stop_event set by the macro runner.
     """
-    TRIGGER_KEY = 'f9'
+    EQUIP_AND_START_KEY = key_mapping.get('numpad2', 'numpad2')
+    START_ONLY_KEY = key_mapping.get('numpad1', 'numpad1')
 
-    log_and_print('info', "Fishing bot ready — press F9 once to start, stop macro to end")
+    log_and_print('info', "Fishing bot ready — NumPad2 equips rod + starts; NumPad1 starts if already on rod")
+
+    def wait_for_key_release(key):
+        while keyboard.is_pressed(key) and not stop_event.is_set():
+            stop_event.wait(0.05)
+
+    def run_fishing_loop(equip_first):
+        first_rotation = True
+        while not stop_event.is_set():
+            fishing_rotation(stop_event, equip_rod=(equip_first and first_rotation))
+            first_rotation = False
+            stop_event.wait(0.05)
 
     while not stop_event.is_set():
         wait_if_paused()
         if stop_event.is_set():
             break
 
-        if keyboard.is_pressed(TRIGGER_KEY):
-            log_and_print('info', "Trigger pressed — starting continuous fishing loop")
-
-            # Debounce the trigger press so it does not immediately retrigger logs.
-            while keyboard.is_pressed(TRIGGER_KEY) and not stop_event.is_set():
-                stop_event.wait(0.05)
-
+        if keyboard.is_pressed(EQUIP_AND_START_KEY):
+            log_and_print('info', "NumPad2 pressed — equipping fishing rod and starting loop")
+            wait_for_key_release(EQUIP_AND_START_KEY)
             try:
-                while not stop_event.is_set():
-                    fishing_rotation(stop_event)
-                    stop_event.wait(0.05)
+                run_fishing_loop(equip_first=True)
+            except Exception as exc:
+                log_and_print('error', f"Unexpected error: {exc}")
+                raise
+
+        elif keyboard.is_pressed(START_ONLY_KEY):
+            log_and_print('info', "NumPad1 pressed — starting fishing loop without equipping")
+            wait_for_key_release(START_ONLY_KEY)
+            try:
+                run_fishing_loop(equip_first=False)
             except Exception as exc:
                 log_and_print('error', f"Unexpected error: {exc}")
                 raise
