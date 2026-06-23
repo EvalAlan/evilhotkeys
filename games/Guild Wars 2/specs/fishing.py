@@ -58,12 +58,6 @@ REEL_REGION = (2745, 802, 3020, 825)      # reel bar region — REEL actions
 CATCH_TARGET_COLOR = (188, 69, 112)      # bright pink/red bite flash (tuned from detected bite)
 CATCH_TOLERANCE = 50                       # generous — different biomes vary
 
-# Bite confirmation pixel — a grey UI element that only appears during bite state.
-# Layered on top of region search to eliminate false positives.
-BITE_CONFIRM_COORDS = (3640, 1020)
-BITE_CONFIRM_COLOR = (47, 47, 47)
-BITE_CONFIRM_TOLERANCE = 15
-
 REEL_GREEN_TARGET = (129, 220, 101)       # green reel zone (empirical)
 REEL_GREEN_TOLERANCE = 40
 
@@ -107,37 +101,11 @@ def colors_close(color, target, tolerance):
 
 
 def detect_catch_indicator():
-    """Check if the catch indicator is showing (fish is biting).
-
-    Two-layer detection:
-      1. Region search for the bright pink/red bite flash.
-      2. Confirmation pixel — a grey UI element at a fixed coordinate that
-         only appears during the bite state. Both must agree to eliminate
-         false positives from the region search alone.
-    """
-    # Layer 1: region search for the bite flash
-    catch_pos = pixel_search_in_region(
-        CATCH_TARGET_COLOR,
-        CATCH_REGION[0], CATCH_REGION[1], CATCH_REGION[2], CATCH_REGION[3],
-        tolerance=CATCH_TOLERANCE
-    )
-    if catch_pos is None:
+    """Check if the catch indicator is showing (fish is biting)."""
+    color = pixel_get_color(*CATCH_INDICATOR_COORDS)
+    if color is None:
         return False
-
-    # Layer 2: confirm with the grey pixel
-    confirm_color = pixel_get_color(*BITE_CONFIRM_COORDS)
-    if confirm_color and colors_close(confirm_color, BITE_CONFIRM_COLOR, BITE_CONFIRM_TOLERANCE):
-        if ENABLE_DETAILED_LOGGING:
-            log_and_print('debug',
-                f"Bite confirmed: flash at {catch_pos}, "
-                f"confirm pixel={confirm_color} at {BITE_CONFIRM_COORDS}")
-        return True
-
-    if ENABLE_DETAILED_LOGGING:
-        log_and_print('debug',
-            f"Bite flash at {catch_pos} REJECTED — "
-            f"confirm pixel={confirm_color} (expected {BITE_CONFIRM_COLOR})")
-    return False
+    return colors_close(color, CATCH_TARGET_COLOR, CATCH_TOLERANCE)
 
 
 def detect_bobber_present():
@@ -216,36 +184,65 @@ def get_reel_positions():
     return green_x, orange_x
 
 
-def pixel_search_in_region(color, x1, y1, x2, y2, tolerance=0):
-    """Search for a color in a region with tolerance.
-    
-    This is a fallback for when single-point detection isn't enough.
-    Uses PIL directly to avoid the exact-match limitation of pixel_search.
+def find_pixel_cluster(color, x1, y1, x2, y2, tolerance=0, min_cluster=4):
+    """Search for a cluster of matching pixels in a region.
+
+    Returns the center (cx, cy) of the first cluster found with at least
+    ``min_cluster`` matching pixels, or None if no cluster exists.
+
+    A cluster is a group of matching pixels that are adjacent (including
+    diagonally). This distinguishes a real UI graphic (multiple adjacent
+    pixels of similar color) from a single stray pixel.
     """
     try:
         from PIL import ImageGrab
         image = ImageGrab.grab(bbox=(x1, y1, x2, y2))
         if image is None:
             return None
-        
-        pixels = list(image.getdata())
-        width = x2 - x1
-        
-        for i, pixel in enumerate(pixels):
-            if tolerance == 0:
-                if pixel[:3] == color:
-                    y, x = divmod(i, width)
-                    return (x1 + x, y1 + y)
-            else:
-                r, g, b = pixel[:3]
-                if (abs(r - color[0]) <= tolerance and
+        image = image.convert('RGB')
+        w, h = image.size
+
+        # Build a grid of matching pixels
+        match = []
+        for y in range(h):
+            row = []
+            for x in range(w):
+                r, g, b = image.getpixel((x, y))[:3]
+                row.append(
+                    abs(r - color[0]) <= tolerance and
                     abs(g - color[1]) <= tolerance and
-                    abs(b - color[2]) <= tolerance):
-                    y, x = divmod(i, width)
-                    return (x1 + x, y1 + y)
+                    abs(b - color[2]) <= tolerance
+                )
+            match.append(row)
+
+        # Find connected components via flood fill
+        visited = [[False] * w for _ in range(h)]
+        for sy in range(h):
+            for sx in range(w):
+                if not match[sy][sx] or visited[sy][sx]:
+                    continue
+                # BFS from this seed
+                queue = [(sx, sy)]
+                visited[sy][sx] = True
+                component = []
+                while queue:
+                    cx, cy = queue.pop()
+                    component.append((cx, cy))
+                    for dx in (-1, 0, 1):
+                        for dy in (-1, 0, 1):
+                            if dx == 0 and dy == 0:
+                                continue
+                            nx, ny = cx + dx, cy + dy
+                            if 0 <= nx < w and 0 <= ny < h and match[ny][nx] and not visited[ny][nx]:
+                                visited[ny][nx] = True
+                                queue.append((nx, ny))
+                if len(component) >= min_cluster:
+                    avg_x = sum(p[0] for p in component) // len(component)
+                    avg_y = sum(p[1] for p in component) // len(component)
+                    return (x1 + avg_x, y1 + avg_y)
         return None
     except Exception as e:
-        log_and_print('error', f"pixel_search_in_region failed: {e}")
+        log_and_print('error', f"find_pixel_cluster failed: {e}")
         return None
 
 
@@ -298,10 +295,17 @@ def fishing_rotation(stop_event, equip_rod=True):
         if stop_event.is_set():
             break
         
-        # Check for bite — two-layer detection (region search + confirm pixel)
-        if detect_catch_indicator():
+        # Check for bite — cluster search for the red "!" graphic.
+        # Requires min_cluster adjacent matching pixels to reject stray singles.
+        catch_pos = find_pixel_cluster(
+            CATCH_TARGET_COLOR,
+            CATCH_REGION[0], CATCH_REGION[1], CATCH_REGION[2], CATCH_REGION[3],
+            tolerance=CATCH_TOLERANCE,
+            min_cluster=4
+        )
+        if catch_pos:
             bite_detected = True
-            log_and_print('info', "BITE DETECTED — confirmed by region search + pixel")
+            log_and_print('info', f"BITE DETECTED at {catch_pos}!")
             break
         
         elapsed = time.time() - wait_start
