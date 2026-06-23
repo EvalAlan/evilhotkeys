@@ -58,6 +58,12 @@ REEL_REGION = (2745, 802, 3020, 825)      # reel bar region — REEL actions
 CATCH_TARGET_COLOR = (188, 69, 112)      # bright pink/red bite flash (tuned from detected bite)
 CATCH_TOLERANCE = 50                       # generous — different biomes vary
 
+# Bite confirmation pixel — a grey UI element that only appears during bite state.
+# Layered on top of region search to eliminate false positives.
+BITE_CONFIRM_COORDS = (3640, 1020)
+BITE_CONFIRM_COLOR = (47, 47, 47)
+BITE_CONFIRM_TOLERANCE = 15
+
 REEL_GREEN_TARGET = (129, 220, 101)       # green reel zone (empirical)
 REEL_GREEN_TOLERANCE = 40
 
@@ -101,11 +107,37 @@ def colors_close(color, target, tolerance):
 
 
 def detect_catch_indicator():
-    """Check if the catch indicator is showing (fish is biting)."""
-    color = pixel_get_color(*CATCH_INDICATOR_COORDS)
-    if color is None:
+    """Check if the catch indicator is showing (fish is biting).
+
+    Two-layer detection:
+      1. Region search for the bright pink/red bite flash.
+      2. Confirmation pixel — a grey UI element at a fixed coordinate that
+         only appears during the bite state. Both must agree to eliminate
+         false positives from the region search alone.
+    """
+    # Layer 1: region search for the bite flash
+    catch_pos = pixel_search_in_region(
+        CATCH_TARGET_COLOR,
+        CATCH_REGION[0], CATCH_REGION[1], CATCH_REGION[2], CATCH_REGION[3],
+        tolerance=CATCH_TOLERANCE
+    )
+    if catch_pos is None:
         return False
-    return colors_close(color, CATCH_TARGET_COLOR, CATCH_TOLERANCE)
+
+    # Layer 2: confirm with the grey pixel
+    confirm_color = pixel_get_color(*BITE_CONFIRM_COORDS)
+    if confirm_color and colors_close(confirm_color, BITE_CONFIRM_COLOR, BITE_CONFIRM_TOLERANCE):
+        if ENABLE_DETAILED_LOGGING:
+            log_and_print('debug',
+                f"Bite confirmed: flash at {catch_pos}, "
+                f"confirm pixel={confirm_color} at {BITE_CONFIRM_COORDS}")
+        return True
+
+    if ENABLE_DETAILED_LOGGING:
+        log_and_print('debug',
+            f"Bite flash at {catch_pos} REJECTED — "
+            f"confirm pixel={confirm_color} (expected {BITE_CONFIRM_COLOR})")
+    return False
 
 
 def detect_bobber_present():
@@ -266,24 +298,10 @@ def fishing_rotation(stop_event, equip_rod=True):
         if stop_event.is_set():
             break
         
-        # Check for catch indicator via region search (bite flash moves within region)
-        catch_pos = pixel_search_in_region(
-            CATCH_TARGET_COLOR,
-            CATCH_REGION[0], CATCH_REGION[1], CATCH_REGION[2], CATCH_REGION[3],
-            tolerance=CATCH_TOLERANCE
-        )
-        if catch_pos:
+        # Check for bite — two-layer detection (region search + confirm pixel)
+        if detect_catch_indicator():
             bite_detected = True
-            # Read the actual color from the screenshot for debug
-            from PIL import ImageGrab
-            img = ImageGrab.grab(bbox=(CATCH_REGION[0], CATCH_REGION[1], CATCH_REGION[2], CATCH_REGION[3]))
-            if img:
-                dx = catch_pos[0] - CATCH_REGION[0]
-                dy = catch_pos[1] - CATCH_REGION[1]
-                actual_color = img.getpixel((dx, dy))[:3]
-                log_and_print('info', f"BITE DETECTED at {catch_pos}! actual_color={actual_color}")
-            else:
-                log_and_print('info', f"BITE DETECTED at {catch_pos}!")
+            log_and_print('info', "BITE DETECTED — confirmed by region search + pixel")
             break
         
         elapsed = time.time() - wait_start
