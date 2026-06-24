@@ -402,12 +402,12 @@ def healing_mechanist_rotation(stop_event):
                 # F1 cancel prevents backward launch
                 log_and_print('info', "Casting Acid Bomb (Elixir Gun 4)")
                 if not button_mash(key_mapping['numpad4'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.6)  # Wait for ability + cancel to complete
+                time.sleep(0.3)  # Short wait for cast to register
                 if check_stop_condition(stop_event): break
                 # Cancel with F1
                 log_and_print('info', "Canceling with F1")
                 if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.35)
+                time.sleep(0.2)  # Brief wait for swap
                 if check_stop_condition(stop_event): break
                 continue
 
@@ -430,7 +430,7 @@ def healing_mechanist_rotation(stop_event):
 
         elif current_kit == 'mortar_kit':
             # Mortar Kit - slot 1 (Mortar Shot), slot 5 (Elixir Shell)
-            # Cast what's ready, then wait briefly before swapping back.
+            # Cast what's ready, then swap back to Shortbow.
             # DO NOT auto-switch to Med Kit — let the next loop decide.
             slot_1_color = pixel_get_color(*BAR_SLOTS['slot_1'])
             slot_1_ready = slot_1_color and slot_1_color != (0, 0, 0)
@@ -438,7 +438,7 @@ def healing_mechanist_rotation(stop_event):
             if slot_1_ready:
                 log_and_print('info', "Casting Mortar Shot (Mortar Kit 1)")
                 if not button_mash(key_mapping['numpad1'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.6)  # Wait for ability to complete before checking next
+                time.sleep(0.6)
                 if check_stop_condition(stop_event): break
 
             slot_5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
@@ -447,7 +447,7 @@ def healing_mechanist_rotation(stop_event):
             if slot_5_ready:
                 log_and_print('info', "Casting Elixir Shell (Mortar Kit 5)")
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.6)  # Wait for ability to complete
+                time.sleep(1.0)  # Water field has long animation
                 if check_stop_condition(stop_event): break
 
             # Swap back to Shortbow
@@ -490,11 +490,10 @@ def healing_mechanist_rotation(stop_event):
                 if slot_5_ready:
                     log_and_print('info', "Casting Infusion Bomb (Med Kit 5)")
                     if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
-                    time.sleep(0.35)
+                    time.sleep(1.0)  # Burst heal has long animation
                     if check_stop_condition(stop_event): break
                     med_important_skills_used = True
 
-                # Med Blaster as filler (only if we already cast a burst skill)
                 if slot_1_ready and med_important_skills_used:
                     log_and_print('info', "Casting Med Blaster (Med Kit 1)")
                     if not button_mash(key_mapping['numpad1'], stop_check=lambda: check_stop_condition(stop_event)): break
