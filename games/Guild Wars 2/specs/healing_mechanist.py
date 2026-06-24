@@ -361,6 +361,7 @@ def healing_mechanist_rotation(stop_event):
     """
     loop_count = 0
     med_important_skills_used = False  # Track whether Vital Blast/Infused Bomb have been cast this Med visit
+    current_kit = 'shortbow'  # Internal state tracking: 'shortbow', 'elixir_gun', 'mortar_kit', 'med_kit'
     while not stop_event.is_set():
         loop_count += 1
         wait_if_paused()
@@ -370,59 +371,27 @@ def healing_mechanist_rotation(stop_event):
 
         # Always cast Barrier Burst and weapon skills 1, 2, 3 first (exactly like heal_mech2.py)
         log_and_print('debug', f"Loop {loop_count}: Casting Barrier Burst and weapon skills 1, 2, 3")
-        button_mash(MECH_COMMAND_KEYS['barrier_burst'][0] if MECH_COMMAND_KEYS['barrier_burst'] else key_mapping.get('3', '3'), 
+        button_mash(MECH_COMMAND_KEYS['barrier_burst'][0] if MECH_COMMAND_KEYS['barrier_burst'] else key_mapping.get('3', '3'),
                    stop_check=lambda: check_stop_condition(stop_event))
         if check_stop_condition(stop_event): break
-        
+
         button_mash('1', stop_check=lambda: check_stop_condition(stop_event))
         if check_stop_condition(stop_event): break
-        
+
         button_mash('2', stop_check=lambda: check_stop_condition(stop_event))
         if check_stop_condition(stop_event): break
-        
+
         button_mash('3', stop_check=lambda: check_stop_condition(stop_event))
         if check_stop_condition(stop_event): break
-        
+
         time.sleep(0.35)
         if check_stop_condition(stop_event): break
 
-        # Kit-specific rotation - check if we're on a kit first (2535, 1030)
-        kit_active_color = pixel_get_color(*DEFAULT_COORDS['kit_active_indicator'])
-        on_kit = kit_active_color == (255, 255, 255)
-        
-        if on_kit:
-            # We're on a kit, check which one
-            elixir_color = pixel_get_color(*DEFAULT_COORDS['indicator_elixir_gun'])
-            mortar_color = pixel_get_color(*DEFAULT_COORDS['indicator_mortar_kit'])
-            med_color = pixel_get_color(*DEFAULT_COORDS['indicator_med_kit'])
-            
-            elixir_gun_active = elixir_color == (255, 255, 255)
-            med_kit_active = med_color == (255, 255, 255)
-            # Mortar pixel can linger bright during Med transition — suppress if Med is active
-            mortar_brightness = sum(mortar_color) if mortar_color else 0
-            mortar_kit_active = (mortar_brightness > 200) and not med_kit_active
-        else:
-            # We're on main weapon (shortbow)
-            elixir_gun_active = False
-            mortar_kit_active = False
-            med_kit_active = False
-        
-        # Log active kit with pixel colors for debugging
-        if elixir_gun_active:
-            active_kit = "ELIXIR_GUN"
-        elif mortar_kit_active:
-            active_kit = "MORTAR_KIT"
-        elif med_kit_active:
-            active_kit = "MED_KIT"
-        else:
-            active_kit = "SHORTBOW"
-        
-        if on_kit:
-            log_and_print('debug', f"Active kit detected: {active_kit} (Kit active: {kit_active_color}, Elixir: {elixir_color}, Mortar: {mortar_color}, Med: {med_color})")
-        else:
-            log_and_print('debug', f"Active kit detected: {active_kit} (Kit active: {kit_active_color} - on main weapon)")
-        
-        if elixir_gun_active:
+        # Log current kit state
+        log_and_print('debug', f"Active kit: {current_kit}")
+
+        # Handle kit-specific logic based on internal state
+        if current_kit == 'elixir_gun':
             # Elixir Gun - slot 4 (Acid Bomb) + slot 5 (Super Elixir)
             slot_4_color = pixel_get_color(*BAR_SLOTS['slot_4'])
             slot_4_ready = slot_4_color and slot_4_color != (0, 0, 0)
@@ -457,8 +426,9 @@ def healing_mechanist_rotation(stop_event):
             if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
             time.sleep(0.35)
             if check_stop_condition(stop_event): break
+            current_kit = 'shortbow'
 
-        elif mortar_kit_active:
+        elif current_kit == 'mortar_kit':
             # Mortar Kit - slot 1 (Mortar Shot), slot 5 (Elixir Shell)
             # Cast what's ready, then swap back to Shortbow.
             # DO NOT auto-switch to Med Kit — let the next loop decide.
@@ -485,8 +455,9 @@ def healing_mechanist_rotation(stop_event):
             if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
             time.sleep(0.35)
             if check_stop_condition(stop_event): break
+            current_kit = 'shortbow'
 
-        elif med_kit_active:
+        elif current_kit == 'med_kit':
             # Med Kit - slot 1 (Med Blaster), slot 4 (Vital Blast), slot 5 (Infusion Bomb)
             # Cast burst skills (4/5) first, then Med Blaster as filler.
             # Swap back to Shortbow after burst skills, or if nothing is ready.
@@ -505,6 +476,7 @@ def healing_mechanist_rotation(stop_event):
                 if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
+                current_kit = 'shortbow'
                 med_important_skills_used = False
             else:
                 # Cast burst skills first
@@ -534,6 +506,7 @@ def healing_mechanist_rotation(stop_event):
                     if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
                     time.sleep(0.35)
                     if check_stop_condition(stop_event): break
+                    current_kit = 'shortbow'
                     med_important_skills_used = False
 
         else:  # shortbow
@@ -601,6 +574,7 @@ def healing_mechanist_rotation(stop_event):
                     break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
+                current_kit = 'elixir_gun'
 
                 # Now on Elixir Gun — check if anything is ready
                 eg_s4_color = pixel_get_color(*BAR_SLOTS['slot_4'])
@@ -615,6 +589,7 @@ def healing_mechanist_rotation(stop_event):
                         break
                     time.sleep(0.35)
                     if check_stop_condition(stop_event): break
+                    current_kit = 'mortar_kit'
 
                     # Now on Mortar Kit — check if anything is ready
                     mort_s1_color = pixel_get_color(*BAR_SLOTS['slot_1'])
@@ -629,6 +604,7 @@ def healing_mechanist_rotation(stop_event):
                             break
                         time.sleep(0.35)
                         if check_stop_condition(stop_event): break
+                        current_kit = 'med_kit'
 
                         # Now on Med Kit — check burst skills (4/5)
                         med_s4_color = pixel_get_color(*BAR_SLOTS['slot_4'])
@@ -643,6 +619,7 @@ def healing_mechanist_rotation(stop_event):
                                 break
                             time.sleep(0.35)
                             if check_stop_condition(stop_event): break
+                            current_kit = 'shortbow'
                         # else: Med Kit has burst skills — let the next loop iteration handle it
                     # else: Mortar has skills — let the next loop iteration handle it
                 # else: Elixir Gun has skills — let the next loop iteration handle it
