@@ -362,6 +362,7 @@ def healing_mechanist_rotation(stop_event):
     loop_count = 0
     med_important_skills_used = False  # Track whether Vital Blast/Infused Bomb have been cast this Med visit
     current_kit = 'shortbow'  # Internal state tracking: 'shortbow', 'elixir_gun', 'mortar_kit', 'med_kit'
+    kit_priority = 0  # Rotating priority for which kit to visit when Shortbow has nothing
     while not stop_event.is_set():
         loop_count += 1
         wait_if_paused()
@@ -401,7 +402,7 @@ def healing_mechanist_rotation(stop_event):
                 # F1 cancel prevents backward launch
                 log_and_print('info', "Casting Acid Bomb (Elixir Gun 4)")
                 if not button_mash(key_mapping['numpad4'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.35)
+                time.sleep(0.6)  # Wait for ability + cancel to complete
                 if check_stop_condition(stop_event): break
                 # Cancel with F1
                 log_and_print('info', "Canceling with F1")
@@ -412,16 +413,15 @@ def healing_mechanist_rotation(stop_event):
 
             slot_5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
             slot_5_ready = slot_5_color and slot_5_color != (0, 0, 0)
-            log_and_print('debug', f"Elixir Gun: Slot 5 (Super Elixir) ready={slot_5_ready}")
 
             if slot_5_ready:
                 log_and_print('info', "Casting Super Elixir (Elixir Gun 5)")
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.35)
+                time.sleep(0.6)  # Wait for ability to complete
                 if check_stop_condition(stop_event): break
                 continue
 
-            # No skills ready — swap back to Shortbow immediately
+            # No skills ready — swap back to Shortbow
             log_and_print('info', "Elixir Gun: No skills ready, swapping back to Shortbow")
             if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
             time.sleep(0.35)
@@ -430,7 +430,7 @@ def healing_mechanist_rotation(stop_event):
 
         elif current_kit == 'mortar_kit':
             # Mortar Kit - slot 1 (Mortar Shot), slot 5 (Elixir Shell)
-            # Cast what's ready, then swap back to Shortbow.
+            # Cast what's ready, then wait briefly before swapping back.
             # DO NOT auto-switch to Med Kit — let the next loop decide.
             slot_1_color = pixel_get_color(*BAR_SLOTS['slot_1'])
             slot_1_ready = slot_1_color and slot_1_color != (0, 0, 0)
@@ -438,7 +438,7 @@ def healing_mechanist_rotation(stop_event):
             if slot_1_ready:
                 log_and_print('info', "Casting Mortar Shot (Mortar Kit 1)")
                 if not button_mash(key_mapping['numpad1'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.35)
+                time.sleep(0.6)  # Wait for ability to complete before checking next
                 if check_stop_condition(stop_event): break
 
             slot_5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
@@ -447,10 +447,10 @@ def healing_mechanist_rotation(stop_event):
             if slot_5_ready:
                 log_and_print('info', "Casting Elixir Shell (Mortar Kit 5)")
                 if not button_mash(key_mapping['numpad5'], stop_check=lambda: check_stop_condition(stop_event)): break
-                time.sleep(0.35)
+                time.sleep(0.6)  # Wait for ability to complete
                 if check_stop_condition(stop_event): break
 
-            # Swap back to Shortbow (always — no auto-Med)
+            # Swap back to Shortbow
             log_and_print('info', "Mortar Kit: done, swapping back to Shortbow")
             if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
             time.sleep(0.35)
@@ -460,7 +460,7 @@ def healing_mechanist_rotation(stop_event):
         elif current_kit == 'med_kit':
             # Med Kit - slot 1 (Med Blaster), slot 4 (Vital Blast), slot 5 (Infusion Bomb)
             # Cast burst skills (4/5) first, then Med Blaster as filler.
-            # Swap back to Shortbow after burst skills, or if nothing is ready.
+            # Only swap back after burst skills are used or if nothing is ready at all.
             slot_1_color = pixel_get_color(*BAR_SLOTS['slot_1'])
             slot_1_ready = slot_1_color and slot_1_color != (0, 0, 0)
 
@@ -470,9 +470,9 @@ def healing_mechanist_rotation(stop_event):
             slot_5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
             slot_5_ready = slot_5_color and slot_5_color != (0, 0, 0)
 
-            # If no burst skills ready, swap out immediately
-            if not slot_4_ready and not slot_5_ready:
-                log_and_print('info', "Med Kit: no burst skills ready, swapping back to Shortbow")
+            # If NOTHING is ready, swap out immediately
+            if not slot_1_ready and not slot_4_ready and not slot_5_ready:
+                log_and_print('info', "Med Kit: no skills ready, swapping back to Shortbow")
                 if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)): break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
@@ -494,7 +494,8 @@ def healing_mechanist_rotation(stop_event):
                     if check_stop_condition(stop_event): break
                     med_important_skills_used = True
 
-                if slot_1_ready:
+                # Med Blaster as filler (only if we already cast a burst skill)
+                if slot_1_ready and med_important_skills_used:
                     log_and_print('info', "Casting Med Blaster (Med Kit 1)")
                     if not button_mash(key_mapping['numpad1'], stop_check=lambda: check_stop_condition(stop_event)): break
                     time.sleep(0.35)
@@ -563,66 +564,37 @@ def healing_mechanist_rotation(stop_event):
                 if check_stop_condition(stop_event): break
 
             # After shortbow: visit a kit if no skills were ready
-            # Strategy: try kits in priority order, but skip any kit with no ready skills.
-            # If ALL kits have nothing, stay on Shortbow.
+            # Use rotating priority to ensure all kits get visited over time
             any_ready = slot_2_ready or slot_3_ready or slot_4_ready or slot_5_ready
             if not any_ready:
-                # Try Elixir Gun first (Acid Bomb + Super Elixir)
-                # We swap, check pixels, and if nothing ready, immediately try next kit
-                log_and_print('info', "Shortbow: No skills ready, switching to Elixir Gun")
-                if not button_mash(key_mapping['numpad7'], stop_check=lambda: check_stop_condition(stop_event)):
-                    break
-                time.sleep(0.35)
-                if check_stop_condition(stop_event): break
-                current_kit = 'elixir_gun'
-
-                # Now on Elixir Gun — check if anything is ready
-                eg_s4_color = pixel_get_color(*BAR_SLOTS['slot_4'])
-                eg_s5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
-                eg_s4_ready = eg_s4_color and eg_s4_color != (0, 0, 0)
-                eg_s5_ready = eg_s5_color and eg_s5_color != (0, 0, 0)
-
-                if not eg_s4_ready and not eg_s5_ready:
-                    # Elixir Gun has nothing — try Mortar Kit
-                    log_and_print('info', "Elixir Gun: No skills ready, switching to Mortar Kit")
+                # Rotate through kits: 0=Elixir, 1=Mortar, 2=Med
+                if kit_priority == 0:
+                    # Try Elixir Gun
+                    log_and_print('info', "Shortbow: No skills ready, switching to Elixir Gun")
+                    if not button_mash(key_mapping['numpad7'], stop_check=lambda: check_stop_condition(stop_event)):
+                        break
+                    time.sleep(0.35)
+                    if check_stop_condition(stop_event): break
+                    current_kit = 'elixir_gun'
+                elif kit_priority == 1:
+                    # Try Mortar Kit
+                    log_and_print('info', "Shortbow: No skills ready, switching to Mortar Kit")
                     if not button_mash(key_mapping['numpad0'], stop_check=lambda: check_stop_condition(stop_event)):
                         break
                     time.sleep(0.35)
                     if check_stop_condition(stop_event): break
                     current_kit = 'mortar_kit'
+                else:
+                    # Try Med Kit
+                    log_and_print('info', "Shortbow: No skills ready, switching to Med Kit")
+                    if not button_mash(key_mapping['numpad6'], stop_check=lambda: check_stop_condition(stop_event)):
+                        break
+                    time.sleep(0.35)
+                    if check_stop_condition(stop_event): break
+                    current_kit = 'med_kit'
 
-                    # Now on Mortar Kit — check if anything is ready
-                    mort_s1_color = pixel_get_color(*BAR_SLOTS['slot_1'])
-                    mort_s5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
-                    mort_s1_ready = mort_s1_color and mort_s1_color != (0, 0, 0)
-                    mort_s5_ready = mort_s5_color and mort_s5_color != (0, 0, 0)
-
-                    if not mort_s1_ready and not mort_s5_ready:
-                        # Mortar has nothing — try Med Kit
-                        log_and_print('info', "Mortar Kit: No skills ready, switching to Med Kit")
-                        if not button_mash(key_mapping['numpad6'], stop_check=lambda: check_stop_condition(stop_event)):
-                            break
-                        time.sleep(0.35)
-                        if check_stop_condition(stop_event): break
-                        current_kit = 'med_kit'
-
-                        # Now on Med Kit — check burst skills (4/5)
-                        med_s4_color = pixel_get_color(*BAR_SLOTS['slot_4'])
-                        med_s5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
-                        med_s4_ready = med_s4_color and med_s4_color != (0, 0, 0)
-                        med_s5_ready = med_s5_color and med_s5_color != (0, 0, 0)
-
-                        if not med_s4_ready and not med_s5_ready:
-                            # Nothing ready anywhere — swap back to Shortbow
-                            log_and_print('info', "Med Kit: No skills ready, swapping back to Shortbow")
-                            if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)):
-                                break
-                            time.sleep(0.35)
-                            if check_stop_condition(stop_event): break
-                            current_kit = 'shortbow'
-                        # else: Med Kit has burst skills — let the next loop iteration handle it
-                    # else: Mortar has skills — let the next loop iteration handle it
-                # else: Elixir Gun has skills — let the next loop iteration handle it
+                # Advance priority for next time
+                kit_priority = (kit_priority + 1) % 3
 
         # Always cast Barrier Signet at the end (like heal_mech2.py)
         log_and_print('debug', "Casting Barrier Signet")
