@@ -149,24 +149,22 @@ MECH_COMMAND_KEYS = {
 COOLDOWNS = {
     'barrier_burst': 10.0,
     'crisis_zone': 25.0,
-    'super_elixir': 16.0,      # Elixir Gun 5 - matches Short Bow 3 (Essence of Living Shadows) timing
-    'fumigate': 12.0,          # Elixir Gun 4
-    'acid_bomb': 20.0,         # Mortar Kit 4
-    'elixir_shell': 15.0,      # Mortar Kit 5 - matches Short Bow 5 (Essence of Borrowed Time) timing
-    'mortar_flash': 18.0,      # Mortar Kit 3 (Flash Shell)
-    'mortar_poison': 20.0,     # Mortar Kit 2 (Poison/Smoke shell)
-    'bandage_blast': 12.0,     # Med Kit toolbelt - matches Short Bow 2 (Essence of Animated Sand) timing
-    'infusion_bomb': 12.0,     # Med Kit 4 - matches Short Bow 4 (Essence of Liquid Wrath) timing, key for burst healing
+    'super_elixir': 16.0,      # Elixir Gun 5
+    'acid_bomb': 20.0,         # Elixir Gun 4
+    'elixir_shell': 15.0,      # Mortar Kit 5
+    'mortar_flash': 18.0,      # Mortar Kit 3
+    'mortar_poison': 20.0,     # Mortar Kit 2
+    'bandage_blast': 12.0,     # Med Kit toolbelt
+    'infusion_bomb': 12.0,     # Med Kit 5 - key for burst healing
+    'vital_blast': 12.0,       # Med Kit 4
     'med_pack_drop': 18.0,     # Med Kit 5
     'barrier_signet': 25.0,
-    'shortbow_2': 5.75,        # Essence of Animated Sand - matches Bandage Blast (12s)
-    'shortbow_3': 8.0,         # Essence of Living Shadows - matches Super Elixir (16s, use together)
-    'shortbow_4': 12.0,        # Essence of Liquid Wrath - matches Infusion Bomb (12s)
-    'shortbow_5': 15.0,        # Essence of Borrowed Time - matches Elixir Shell (15s), hold for CC/Superspeed
+    'shortbow_2': 5.75,        # Essence of Animated Sand
+    'shortbow_3': 8.0,         # Essence of Living Shadows
+    'shortbow_4': 12.0,        # Essence of Liquid Wrath
+    'shortbow_5': 15.0,        # Essence of Borrowed Time
 }
-
 FORCE_INTERVALS = {
-    'barrier_burst': 14.0,
     'barrier_signet': 40.0,
 }
 
@@ -591,19 +589,63 @@ def healing_mechanist_rotation(stop_event):
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
 
-            # After shortbow: visit a kit ONLY if no shortbow skills were ready
-            # Go DIRECTLY to the kit with a ready burst skill (don't chain kits)
+            # After shortbow: visit a kit if no skills were ready
+            # Strategy: try kits in priority order, but skip any kit with no ready skills.
+            # If ALL kits have nothing, stay on Shortbow.
             any_ready = slot_2_ready or slot_3_ready or slot_4_ready or slot_5_ready
             if not any_ready:
-                # Check which kit has a ready burst skill
-                # Priority: Med Kit (Infusion Bomb/Vital Blast) > Elixir Gun (Super Elixir/Acid Bomb)
-                # We need to read kit pixels to know what's ready, but we're still on Shortbow.
-                # Just go to Elixir Gun as default — it has the most frequent skill (Acid Bomb).
+                # Try Elixir Gun first (Acid Bomb + Super Elixir)
+                # We swap, check pixels, and if nothing ready, immediately try next kit
                 log_and_print('info', "Shortbow: No skills ready, switching to Elixir Gun")
                 if not button_mash(key_mapping['numpad7'], stop_check=lambda: check_stop_condition(stop_event)):
                     break
                 time.sleep(0.35)
                 if check_stop_condition(stop_event): break
+
+                # Now on Elixir Gun — check if anything is ready
+                eg_s4_color = pixel_get_color(*BAR_SLOTS['slot_4'])
+                eg_s5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
+                eg_s4_ready = eg_s4_color and eg_s4_color != (0, 0, 0)
+                eg_s5_ready = eg_s5_color and eg_s5_color != (0, 0, 0)
+
+                if not eg_s4_ready and not eg_s5_ready:
+                    # Elixir Gun has nothing — try Mortar Kit
+                    log_and_print('info', "Elixir Gun: No skills ready, switching to Mortar Kit")
+                    if not button_mash(key_mapping['numpad0'], stop_check=lambda: check_stop_condition(stop_event)):
+                        break
+                    time.sleep(0.35)
+                    if check_stop_condition(stop_event): break
+
+                    # Now on Mortar Kit — check if anything is ready
+                    mort_s1_color = pixel_get_color(*BAR_SLOTS['slot_1'])
+                    mort_s5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
+                    mort_s1_ready = mort_s1_color and mort_s1_color != (0, 0, 0)
+                    mort_s5_ready = mort_s5_color and mort_s5_color != (0, 0, 0)
+
+                    if not mort_s1_ready and not mort_s5_ready:
+                        # Mortar has nothing — try Med Kit
+                        log_and_print('info', "Mortar Kit: No skills ready, switching to Med Kit")
+                        if not button_mash(key_mapping['numpad6'], stop_check=lambda: check_stop_condition(stop_event)):
+                            break
+                        time.sleep(0.35)
+                        if check_stop_condition(stop_event): break
+
+                        # Now on Med Kit — check burst skills (4/5)
+                        med_s4_color = pixel_get_color(*BAR_SLOTS['slot_4'])
+                        med_s5_color = pixel_get_color(*BAR_SLOTS['slot_5'])
+                        med_s4_ready = med_s4_color and med_s4_color != (0, 0, 0)
+                        med_s5_ready = med_s5_color and med_s5_color != (0, 0, 0)
+
+                        if not med_s4_ready and not med_s5_ready:
+                            # Nothing ready anywhere — swap back to Shortbow
+                            log_and_print('info', "Med Kit: No skills ready, swapping back to Shortbow")
+                            if not button_mash(key_mapping['f1'], stop_check=lambda: check_stop_condition(stop_event)):
+                                break
+                            time.sleep(0.35)
+                            if check_stop_condition(stop_event): break
+                        # else: Med Kit has burst skills — let the next loop iteration handle it
+                    # else: Mortar has skills — let the next loop iteration handle it
+                # else: Elixir Gun has skills — let the next loop iteration handle it
 
         # Always cast Barrier Signet at the end (like heal_mech2.py)
         log_and_print('debug', "Casting Barrier Signet")
