@@ -736,6 +736,10 @@ def run(stop_event):
             except Exception as exc:
                 log_and_print('error', f"Unexpected error in Power Untamed rotation: {exc}")
                 raise
+            # CRITICAL: Wait for key release before re-arming
+            # Prevents infinite start/stop loop when start_key == stop_key
+            while keyboard.is_pressed(STOP_KEY) and not stop_event.is_set():
+                time.sleep(0.05)
         time.sleep(0.05)
 
     logger.info("Power Untamed spec ended")
